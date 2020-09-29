@@ -265,16 +265,16 @@ if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerP/"
     include_folders = [results_folder]
 
-    # subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
-    # include_folders = [results_folder+subfolder for subfolder in subfolders]
+    subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
+    include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "is_cycle_consistent", "nr_params", "nr_gen_params", "nr_disc_params",
                 "activation", "is_patchgan",
                 "is_conv", "loss", "lmbda", "optimizer", "learning_rate", "batch_size", "nr_train", "shuffle", "steps_gen", "steps_adv",
-                "dataset", "algorithm", "dropout", "batchnorm"]
+                "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing"]
 
     # move_to_exit(paths_to_outputs=results_folder)
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
-    # create_image_summary(include_folders, image_folder="Evaluation/Energy", nr_images=9, save_path=results_folder, ignore="4Exit")
-    # create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder)
+    create_image_summary(include_folders, image_folder="Evaluation/Energy", nr_images=9, save_path=results_folder, ignore="4Exit")
+    create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder)
 

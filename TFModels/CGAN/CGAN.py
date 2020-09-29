@@ -200,6 +200,7 @@ class CGAN(ConditionalGenerativeModel):
 
         if self._is_cycle_consistent:
             self._aux_loss = tf.reduce_mean(tf.abs(self._mod_Z_input - self._output_auxiliary))
+            self._gen_loss += self._aux_loss
 
         with tf.name_scope("Loss") as scope:
             tf.summary.scalar("Generator_Loss", self._gen_loss)
@@ -435,7 +436,7 @@ if __name__ == '__main__':
 
                         [tf.layers.conv2d, {"filters": 128, "kernel_size": 2, "strides": 2, "activation": tf.nn.relu}],
                         [tf.layers.conv2d, {"filters": 256, "kernel_size": 2, "strides": 2, "activation": tf.nn.relu}],
-                        [tf.layers.conv2d, {"filters": 1, "kernel_size": 5, "strides": 1, "padding": "same", "activation": tf.nn.relu}],
+                        [tf.layers.conv2d, {"filters": 1, "kernel_size": 5, "strides": 1, "padding": "same", "activation": tf.nn.sigmoid}],
                         ]
     auxiliary_architecture = [
                         [tf.layers.flatten, {}],
@@ -455,7 +456,7 @@ if __name__ == '__main__':
 
     is_wasserstein = loss == "wasserstein"
 
-    if is_patchGAN:
+    if is_patchGAN and is_wasserstein:
         adversarial_architecture[-1][1]["activation"] = tf.identity
 
     fails = ""

@@ -44,20 +44,20 @@ from generativeModels import GenerativeModel
 ############################################################################################################
 param_dict = {
             "z_dim": [32, 64],
-            "optimizer": [tf.train.AdamOptimizer, tf.train.RMSPropOptimizer],
+            "optimizer": [tf.train.RMSPropOptimizer],
             "algorithm": ["CGAN"],
             "dataset": ["PiplusLowerP"],
             "gen_steps": [1],
-            "adv_steps": [5, 1],
+            "adv_steps": [5],
             # "architecture": ["more_unbalanced"],
-            "architecture": ["unbalanced2", "unbalanced", "unbalanced5", "unbalanced6"],
-            "is_patchgan": [True, False],
+            "architecture": ["unbalanced2", "unbalanced"],
+            "is_patchgan": [False],
             "batch_size": [8],
-            "loss": ["cross-entropy", "KL"],
+            "loss": ["cross-entropy", "KL", "wasserstein"],
             "cc": [False],
             "lr": [0.001],
-            "feature_matching": [False],
-            "label_smoothing": [0.8, 0.9, 1]
+            "feature_matching": [False, True],
+            "label_smoothing": [0.95]
 }
 sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=30, allow_repetition=True)
 
@@ -81,6 +81,7 @@ for params in sampled_params:
 
     keep_cols = ["x_projections", "y_projections", "real_ET"]
     nr_test = 100
+    nr_train = 50000
 
     optimizer = params["optimizer"]
     learning_rate = float(params["lr"])
@@ -161,8 +162,8 @@ for params in sampled_params:
     path_saving = init.initialize_folder(algorithm=algorithm, base_folder=path_results)
 
     data, scaler = init.load_processed_data(path_loading, return_scaler=True)
-    train_calo = data["train"]["Calo"]
-    train_tracker = data["train"]["Tracker"]
+    train_calo = data["train"]["Calo"][:nr_train]
+    train_tracker = data["train"]["Tracker"][:nr_train]
     test_calo = data["test"]["Calo"]
     test_tracker = data["test"]["Tracker"]
 
@@ -187,13 +188,13 @@ for params in sampled_params:
     test_tracker["real_ET"] /= scaler["Calo"]
 
     assert np.max(train_calo) == 1, "Train calo maximum not one. Given: {}.".format(np.max(train_calo))
-    assert np.allclose(np.mean(train_tracker[keep_cols[:-1]], axis=0), 0, atol=1e-5), "Train not centralized: {}.".format(
-        np.mean(train_tracker[keep_cols], axis=0)
-    )
+    # assert np.allclose(np.mean(train_tracker[keep_cols[:-1]], axis=0), 0, atol=1e-5), "Train not centralized: {}.".format(
+    #     np.mean(train_tracker[keep_cols], axis=0)
+    # )
     # assert np.allclose(np.mean(test_tracker, axis=0), 0, atol=1e-1), "Test not centralized: {}.".format(np.mean(test_tracker, axis=0))
-    assert np.allclose(np.std(train_tracker[keep_cols[:-1]], axis=0), 1, atol=1e-10), "Train not standardized: {}.".format(
-        np.std(train_tracker[keep_cols], axis=0)
-    )
+    # assert np.allclose(np.std(train_tracker[keep_cols[:-1]], axis=0), 1, atol=1e-10), "Train not standardized: {}.".format(
+    #     np.std(train_tracker[keep_cols], axis=0)
+    # )
     assert image_shape == train_calo.shape[1:], "Wrong image shape vs train shape: {} vs {}.".format(image_shape, train_calo.shape[1:])
     train_tracker = train_tracker[keep_cols].values
     test_tracker = test_tracker[keep_cols].values
@@ -201,7 +202,6 @@ for params in sampled_params:
     logging_tracker = test_tracker[:15]
 
     nr_train = train_calo.shape[0]
-
 
     ############################################################################################################
     # Preparation

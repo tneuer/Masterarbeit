@@ -115,8 +115,8 @@ class Pix2PixGAN(Image2ImageGenerativeModel):
                                                             var_list=self._get_vars(scope="Discriminator"),
                                                             name="Discriminator")
 
-            self._gen_grads_and_vars = gen_optimizer.compute_gradients(self._gen_loss)
-            self._disc_grads_and_vars = disc_optimizer.compute_gradients(self._disc_loss)
+            self._gen_grads_and_vars = gen_optimizer.compute_gradients(self._gen_loss, var_list=self._get_vars(scope="Generator"))
+            self._disc_grads_and_vars = disc_optimizer.compute_gradients(self._disc_loss, var_list=self._get_vars(scope="Discriminator"))
         self._summarise()
 
 
@@ -219,10 +219,6 @@ class Pix2PixGAN(Image2ImageGenerativeModel):
                 if (batch_log_step is not None) and (ii % batch_log_step == 0):
                     batch_train_time = (time.clock() - start)/60
                     self._log(int(epoch*nr_batches+ii), batch_train_time)
-
-                # if ii % 100 == 0:
-                #     print("DiscLoss / GenLoss: ",  disc_loss_batch, gen_loss_batch)
-                #     self._check_tf_variables(ii, nr_batches)
 
                 disc_loss_epoch += disc_loss_batch
                 gen_loss_epoch += gen_loss_batch
@@ -418,15 +414,6 @@ if __name__ == '__main__':
                         # [tf.layers.batch_normalization, {}],
                         [conv2d_logged, {"filters": 1, "kernel_size": 4, "activation": tf.nn.sigmoid, "padding": "same"}],
                         ]
-    # gen_architecture = [
-    #                     [tf.layers.flatten, {}],
-    #                     [tf.layers.dense, {"units": 128, "activation": tf.nn.relu}],
-    #                     [tf.layers.dense, {"units": 32*32, "activation": tf.nn.sigmoid}],
-    #                     [reshape_layer, {"shape": [32, 32, 1]}],
-    #                     ]
-    # disc_architecture = [
-    #                     [tf.layers.dense, {"units": 128, "activation": tf.nn.relu}],
-    #                     ]
 
     x_test = x_train[-100:]
     x_train = x_train[:-100]
@@ -437,8 +424,8 @@ if __name__ == '__main__':
     learning_rate = 0.0002
     beta1=0.5
     batch_size = 1
-    loss = "L1"
-    is_patchgan = True
+    loss = "cross-entropy"
+    is_patchgan = False
     epochs = 2
     activation = tf.nn.relu
     gen_steps = 1
