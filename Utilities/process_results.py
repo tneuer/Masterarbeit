@@ -43,6 +43,7 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
     info = []
     used_variables = ["Log", "Layers", "Epochs", "Type"]
     used_variables.extend(variables)
+
     for i, folder in enumerate(subfolders):
         print(i+1, "/", len(subfolders), ":", folder)
         folder_config = []
@@ -67,9 +68,12 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
                 f_path = origin+"/"+f_path
 
                 graph_index = [f for f in os.listdir("{}/TFGraphs".format(folder)) if "index" in f]
-                epoch = max([int(re.findall(r'\d+', idx)[0]) for idx in graph_index])
+                # epoch = max([int(re.findall(r'\d+', idx)[0]) for idx in graph_index])
 
-                act = config_dict["activation"].split(".")[-1]
+                try:
+                    act = config_dict["activation"].split(".")[-1]
+                except KeyError:
+                    act = "Not Implemented"
 
                 layers_per_net = ""
                 type_per_net = ""
@@ -102,7 +106,7 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
 
                     config_dict["Log"] = f_path
                     config_dict["Layers"] = layers_per_net
-                    config_dict["Epochs"] = epoch
+                    # config_dict["Epochs"] = epoch
                     config_dict["Type"] = network_type
 
                 this_dict = {}
@@ -263,18 +267,19 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerP/"
+    results_folder = "../../Results/ServerTemp/Test/"
     include_folders = [results_folder]
 
-    subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
-    include_folders = [results_folder+subfolder for subfolder in subfolders]
+    # subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
+    # include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "is_cycle_consistent", "nr_params", "nr_gen_params", "nr_disc_params",
                 "activation", "is_patchgan",
                 "is_conv", "loss", "lmbda", "optimizer", "learning_rate", "batch_size", "nr_train", "shuffle", "steps_gen", "steps_adv",
                 "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing"]
 
-    # move_to_exit(paths_to_outputs=results_folder)
+    # move_to_exit(aths_to_outputs=results_folder)
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
-    create_image_summary(include_folders, image_folder="Evaluation/Energy", nr_images=9, save_path=results_folder, ignore="4Exit")
-    create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder)
+    create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
+    # create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder)
 

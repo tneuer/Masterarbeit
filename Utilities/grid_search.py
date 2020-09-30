@@ -7,6 +7,7 @@
     # Description :
 ####################################################################################
 """
+import json
 import numpy as np
 
 def get_parameter_grid(param_dict, n, allow_repetition=False):
@@ -27,6 +28,28 @@ def get_parameter_grid(param_dict, n, allow_repetition=False):
 
     print("{} / {} unique gridpoints ({} total).".format(n-rep, nr_possibilities, n))
     return grid
+
+
+def run_agorithm(algorithm, init_params, compile_params, train_params, path_saving, config_data=None):
+    try:
+        if config_data is not None:
+            with open(path_saving+"/config.json", "w") as f:
+                json.dump(config_data, f, indent=4)
+
+        network = algorithm(**init_params)
+        print(network.show_architecture())
+        for architecture in network._nets:
+            print(architecture._name, architecture.get_number_params())
+        network.log_architecture()
+        network.compile(**compile_params)
+        network.train(**train_params)
+        with open(path_saving+"/EXIT_FLAG0.txt", "w") as f:
+            f.write("EXIT STATUS: 0. No errors or warnings.")
+    except GeneratorExit as e:
+        with open(path_saving+"/EXIT_FLAG1.txt", "w") as f:
+            f.write("EXIT STATUS: 1. {}.".format(e))
+
+
 
 if __name__ == "__main__":
     param_dict = {
