@@ -32,16 +32,19 @@ def get_parameter_grid(param_dict, n, allow_repetition=False):
 
 def run_agorithm(algorithm, init_params, compile_params, train_params, path_saving, config_data=None):
     try:
-        if config_data is not None:
-            with open(path_saving+"/config.json", "w") as f:
-                json.dump(config_data, f, indent=4)
-
         network = algorithm(**init_params)
         print(network.show_architecture())
         for architecture in network._nets:
             print(architecture._name, architecture.get_number_params())
         network.log_architecture()
         network.compile(**compile_params)
+
+        if config_data is not None:
+            config_data["nr_params"] = network.get_number_params()
+            config_data["nr_gen_params"] = network._generator.get_number_params()
+            with open(path_saving+"/config.json", "w") as f:
+                json.dump(config_data, f, indent=4)
+
         network.train(**train_params)
         with open(path_saving+"/EXIT_FLAG0.txt", "w") as f:
             f.write("EXIT STATUS: 0. No errors or warnings.")

@@ -12,6 +12,7 @@ import re
 import sys
 import json
 import shutil
+import imageio
 import natsort
 
 import numpy as np
@@ -20,12 +21,13 @@ import pandas as pd
 from tabulate import tabulate
 from collections import OrderedDict
 
-import matplotlib.image as mpimg
+# import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-from functionsOnImages import savefigs, get_layout
 from plotnine import *
+from PyPDF2 import PdfFileMerger
+from functionsOnImages import savefigs, get_layout
 
 
 def atoi(text):
@@ -45,7 +47,8 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
     used_variables.extend(variables)
 
     for i, folder in enumerate(subfolders):
-        print(i+1, "/", len(subfolders), ":", folder)
+        if i % 10 == 0:
+            print(i+1, "/", len(subfolders), ":", folder)
         folder_config = []
 
         try:
@@ -131,7 +134,7 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
     info_df.reset_index(drop=True, inplace=True)
     to_append = ""
     for col in info_df:
-        nr_unique = info_df[col].nunique()
+        nr_unique = info_df[col].astype(str).nunique()
         if nr_unique == 1:
             to_append += "\n{}: {}".format(col, info_df.loc[0, col])
             info_df.drop(col, axis=1, inplace=True)
@@ -146,6 +149,7 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
 
 
 def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, ignore=None):
+    import random
     if isinstance(paths_to_outputs, str):
         paths_to_outputs = [paths_to_outputs]
     if ignore is None:
@@ -160,24 +164,39 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
         if ignore in folder:
             continue
         image_paths = [f.path for f in os.scandir(folder)]
-        # assert len(image_paths) >= nr_images, "Not enough images in folder: {}. Given: {}, Needed: {}.".format(folder, len(image_paths), nr_images)
         image_paths.sort(key=natural_keys)
         im_ids = (np.linspace(0, 1, nr_images) * (len(image_paths) - 1)).astype(int)
 
         fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(20, 16))
         fig.suptitle(folder)
         axs = np.ravel(axs)
-        for i, ax in enumerate(axs):
-            if im_ids[i] >= len(image_paths):
+        for ax_idx, ax in enumerate(axs):
+            if im_ids[ax_idx] >= len(image_paths):
                 break
-            im_id = im_ids[i] if nr_images != 1 else -1
+            im_id = im_ids[ax_idx] if nr_images != 1 else -1
             current_image_path = image_paths[im_id]
-            image = mpimg.imread(current_image_path)
+            image = imageio.imread(current_image_path)
             im_name = current_image_path.partition(image_folder+"/")[2]
             ax.set_title("Image: {}".format(im_name))
             ax.imshow(image)
         figs.append(fig)
-    savefigs(figures=figs, save_path=save_path+"/samples.pdf")
+        plt.close("all")
+        if (i+1) % 10 == 0:
+            savefigs(figures=figs, save_path=save_path+"/samples_{}.pdf".format(i+1))
+            plt.cla()
+            plt.clf()
+            for fig in figs:
+                del fig
+            figs = []
+
+    merger = PdfFileMerger()
+    pdfs = [f.path for f in os.scandir(save_path) if ".pdf" in f.path]
+    pdfs.sort(key=natural_keys)
+    for pdf in pdfs:
+        merger.append(pdf)
+        os.remove(pdf)
+    merger.write(save_path+"/samples.pdf")
+    merger.close()
 
 
 def create_loss_figure(paths_to_outputs, save_path, ignore=None):
@@ -220,13 +239,13 @@ def create_loss_figure(paths_to_outputs, save_path, ignore=None):
     ggsave(plot=plt1, filename=save_path+"/Losses.png", device="png", height=12, width=12)
 
 
-def create_statistical_summary(paths_to_outputs, subfolders, variables, save_path):
+def create_statistical_summary(paths_to_outputs, subfolders, variables, save_path, pairwise=None):
     paths_to_outputs = [paths_to_outputs+"/"+s  for s in subfolders]
     summary_df = create_index(paths_to_outputs=paths_to_outputs, variables=variables, save_path=None)
     summary_df["Type"] = [re.findall("[a-zA-Z0-9_]+/", log)[0][:-1] for log in summary_df["Log"]]
     figs = []
     for col in summary_df:
-        print(col)
+        print("Processing: ", col)
         if col not in ["Log", "Type"]:
             current_df = summary_df[[col, "Type"]]
             aggregate_df = current_df.groupby([col, "Type"]).size().reset_index()
@@ -237,6 +256,19 @@ def create_statistical_summary(paths_to_outputs, subfolders, variables, save_pat
             ax = wide_aggregate_df.plot.bar(rot=0)
             fig = plt.gcf()
             figs.append(fig)
+
+    for pair in pairwise:
+        print("Processing: ", pair)
+        current_df = summary_df[[pair[0], pair[1], "Type"]]
+        aggregate_df = current_df.groupby([pair[0], pair[1], "Type"]).size().reset_index()
+        aggregate_df["Pair"] = aggregate_df[pair[0]].astype(str) + "-" + aggregate_df[pair[1]].astype(str)
+        aggregate_df.drop(pair, inplace=True, axis=1)
+        aggregate_df.columns = ["Type", "Count", "Pair"]
+        wide_aggregate_df = aggregate_df.pivot(index='Type', columns="Pair", values='Count')
+        wide_aggregate_df = wide_aggregate_df.reindex(index=subfolders)
+        ax = wide_aggregate_df.plot.bar(rot=0)
+        fig = plt.gcf()
+        figs.append(fig)
 
     savefigs(figures=figs, save_path=save_path+"/statistics.pdf")
     return(figs)
@@ -266,20 +298,22 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 
 if __name__ == "__main__":
-    results_folder = "../../Results/ServerTemp/PiplusLowerP/"
+    results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
     results_folder = "../../Results/ServerTemp/Test/"
     include_folders = [results_folder]
 
-    # subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
-    # include_folders = [results_folder+subfolder for subfolder in subfolders]
+    subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
+    include_folders = [results_folder+subfolder for subfolder in subfolders]
 
-    use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "is_cycle_consistent", "nr_params", "nr_gen_params", "nr_disc_params",
-                "activation", "is_patchgan",
-                "is_conv", "loss", "lmbda", "optimizer", "learning_rate", "batch_size", "nr_train", "shuffle", "steps_gen", "steps_adv",
-                "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing"]
+    use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "nr_params", "nr_gen_params", "nr_disc_params",
+                "is_patchgan", "loss", "lmbda", "optimizer", "learning_rate", "batch_size", "nr_train", "shuffle",
+                "gen_steps", "adv_steps", "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing", "invert_images",
+                "feature_matching"]
+    pairwise = [["optimizer", "learning_rate"], ["feature_matching", "loss"]]
 
-    # move_to_exit(aths_to_outputs=results_folder)
+    # move_to_exit(paths_to_outputs=results_folder)
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
-    create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
-    # create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder)
+    # create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
+    create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder,
+                               pairwise=pairwise)
 

@@ -497,8 +497,8 @@ class CVAEGAN(Image2ImageGenerativeModel):
 if __name__ == '__main__':
     ########### Image input
     if "lhcb_data2" in os.getcwd():
-        os.environ["CUDA_VISIBLE_DEVICES"]="0"
-        gpu_frac = 0.3
+        os.environ["CUDA_VISIBLE_DEVICES"]="1"
+        gpu_frac = 0.2
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
         print("1 GPU limited to {}% memory.".format(np.round(gpu_frac*100)))
     else:
@@ -529,18 +529,18 @@ if __name__ == '__main__':
     opt_dim = y_train_orig[0].shape
 
     param_dict = {
-            "adv_steps": [1, 5],
-            "architecture": ["unbalanced1", "unbalanced2", "unbalanced3", "unbalanced4"],
-            "batch_size": [8, 16, 32],
-            "feature_matching": [True, False],
+            "adv_steps": [1],
+            "architecture": ["keraslike", "inception1", "inception2"],
+            "batch_size": [1, 4, 8],
+            "feature_matching": [True],
             "gen_steps": [1],
-            "is_patchgan": [True, False],
+            "is_patchgan": [True],
             "invert_images": [True, False],
-            "lmbda": [0.1, 1, 10],
-            "loss": ["cross-entropy", "KL", "L2"],
-            "lr": [0.0001, 0.00005, 0.00001],
+            "lmbda": [0.1, 1, 2],
+            "loss": ["KL", "L2"],
+            "lr": [0.0001, 0.00005],
             "lr_adv": [0.000005],
-            "optimizer": [tf.train.RMSPropOptimizer, tf.train.AdamOptimizer],
+            "optimizer": [tf.train.AdamOptimizer],
             "z_dim": [32, 64],
     }
     sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=50, allow_repetition=True)
@@ -613,6 +613,8 @@ if __name__ == '__main__':
 
         config_data = copy.deepcopy(init_params); config_data.update(compile_params); config_data.update(train_params)
         config_data["nr_train"] = len(x_test)
+        config_data["invert_images"] = invert_images
+        config_data["architecture"] = params["architecture"]
         config_data["optimizer"] = config_data["optimizer"].__name__
         for key in ["x_train", "y_train", "x_test", "y_test", "gpu_options"]:
             config_data.pop(key)
