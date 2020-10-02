@@ -397,7 +397,7 @@ class Pix2PixGAN(Image2ImageGenerativeModel):
 
 if __name__ == '__main__':
     ########### Image input
-    if "lhcb_data2" in os.getcwd():
+    if "lhcb_data" in os.getcwd():
         os.environ["CUDA_VISIBLE_DEVICES"]="1"
         gpu_frac = 0.2
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
@@ -406,7 +406,7 @@ if __name__ == '__main__':
         gpu_options = None
 
     import pickle
-    if "lhcb_data2" in os.getcwd():
+    if "lhcb_data" in os.getcwd():
         data_path = "../../../Data/fashion_mnist"
     else:
         data_path = "/home/tneuer/Backup/Algorithmen/0TestData/image_to_image/fashion_mnist"

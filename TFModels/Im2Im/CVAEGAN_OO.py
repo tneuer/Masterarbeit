@@ -111,12 +111,15 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._init_folders()
         self._verify_init()
 
+        self._output_label_real = tf.placeholder(tf.float32, shape=self._output_adv_real.shape, name="label_real")
+        self._output_label_fake = tf.placeholder(tf.float32, shape=self._output_adv_fake_from_real.shape, name="label_fake")
+
         if self._is_patchgan:
             print("PATCHGAN chosen with output: {}.".format(self._output_adv_real.shape))
 
 
     def compile(self, loss, optimizer, learning_rate=None, learning_rate_enc=None, learning_rate_gen=None, learning_rate_adv=None,
-                label_smoothing=1, lmbda=1, feature_matching=False):
+                label_smoothing=1, lmbda=1, feature_matching=False, random_labeling=0):
 
         if self._is_wasserstein and loss != "wasserstein":
             raise ValueError("If is_wasserstein is true in Constructor, loss needs to be wasserstein.")
@@ -132,7 +135,8 @@ class CVAEGAN(Image2ImageGenerativeModel):
         if learning_rate is not None and learning_rate_adv is None:
             learning_rate_adv = learning_rate
 
-        self._define_loss(loss=loss, label_smoothing=label_smoothing, lmbda=lmbda, feature_matching=feature_matching)
+        self._define_loss(loss=loss, label_smoothing=label_smoothing, lmbda=lmbda, feature_matching=feature_matching,
+                          random_labeling=random_labeling)
         with tf.name_scope("Optimizer"):
             self._enc_optimizer = optimizer(learning_rate=learning_rate_enc)
             self._enc_optimizer_op = self._enc_optimizer.minimize(self._enc_loss, var_list=self._get_vars("Encoder"), name="Encoder")
@@ -143,14 +147,15 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._summarise()
 
 
-    def _define_loss(self, loss, label_smoothing, lmbda, feature_matching):
-        possible_losses = ["cross-entropy", "L2", "wasserstein"]
-        def get_labels_one(tensor):
-            return tf.ones_like(tensor)*label_smoothing
-        def get_labels_zero(tensor):
-            return tf.zeros_like(tensor) + 1 - label_smoothing
+    def _define_loss(self, loss, label_smoothing, lmbda, feature_matching, random_labeling):
+        possible_losses = ["cross-entropy", "L2", "wasserstein", "KL"]
+        def get_labels_one():
+            return tf.math.multiply(self._output_label_real, label_smoothing)
+        def get_labels_zero():
+            return self._output_label_fake
         eps = 1e-7
         self._label_smoothing = label_smoothing
+        self._random_labeling = random_labeling
         ## Kullback-Leibler divergence
         self._KLdiv = 0.5*(tf.square(self._mean_layer) + tf.exp(self._std_layer) - self._std_layer - 1)
         self._KLdiv = tf.reduce_mean(self._KLdiv)
@@ -173,13 +178,13 @@ class CVAEGAN(Image2ImageGenerativeModel):
             )
             self._adversarial_loss = tf.reduce_mean(
                                     tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_one(self._logits_real), logits=self._logits_real
+                                        labels=get_labels_one(), logits=self._logits_real
                                     ) +
                                     tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_zero(self._logits_fake_from_real), logits=self._logits_fake_from_real
+                                        labels=get_labels_zero(), logits=self._logits_fake_from_real
                                     )  +
                                     tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_zero(self._logits_fake_from_latent), logits=self._logits_fake_from_latent
+                                        labels=get_labels_zero(), logits=self._logits_fake_from_latent
                                     )
             )
         elif loss == "L2":
@@ -189,9 +194,9 @@ class CVAEGAN(Image2ImageGenerativeModel):
             ) / 2
             self._adversarial_loss = (
                 tf.reduce_mean(
-                    tf.square(self._output_adv_real - get_labels_one(self._output_adv_real)) +
-                    tf.square(self._output_adv_fake_from_real - get_labels_zero(self._output_adv_fake_from_real)) +
-                    tf.square(self._output_adv_fake_from_latent - get_labels_zero(self._output_adv_fake_from_real))
+                    tf.square(self._output_adv_real - get_labels_one()) +
+                    tf.square(self._output_adv_fake_from_real - get_labels_zero()) +
+                    tf.square(self._output_adv_fake_from_latent - get_labels_zero())
                 )
             ) / 3.0
         elif loss == "wasserstein":
@@ -209,13 +214,13 @@ class CVAEGAN(Image2ImageGenerativeModel):
             self._generator_loss = (-tf.reduce_mean(self._logits_fake_from_real) - tf.reduce_mean(self._logits_fake_from_latent))/2
             self._adversarial_loss = tf.reduce_mean(
                                     0.5*tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_one(self._logits_real), logits=self._logits_real
+                                        labels=get_labels_one(), logits=self._logits_real
                                     ) +
                                     0.25*tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_zero(self._logits_fake_from_real), logits=self._logits_fake_from_real
+                                        labels=get_labels_zero(), logits=self._logits_fake_from_real
                                     )  +
                                     0.25*tf.nn.sigmoid_cross_entropy_with_logits(
-                                        labels=get_labels_zero(self._logits_fake_from_latent), logits=self._logits_fake_from_latent
+                                        labels=get_labels_zero(), logits=self._logits_fake_from_latent
                                     )
             )
         else:
@@ -261,6 +266,7 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._set_up_test_train_sample(x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test)
         self._z_test = self._generator.sample_noise(n=len(self._x_test))
         nr_batches = np.floor(len(x_train) / batch_size)
+        self.batch_size = batch_size
         self._prepare_monitoring()
         self._log_results(epoch=0, epoch_time=0)
 
@@ -274,8 +280,8 @@ class CVAEGAN(Image2ImageGenerativeModel):
 
             while trained_examples < len(x_train):
                 batch_train_start = time.clock()
-                adv_loss_batch, gen_loss_batch, enc_loss_batch = self._optimize(self._trainset, batch_size, adv_steps, gen_steps)
-                trained_examples += batch_size
+                adv_loss_batch, gen_loss_batch, enc_loss_batch = self._optimize(self._trainset, adv_steps, gen_steps)
+                trained_examples += self.batch_size
                 adv_loss_epoch += adv_loss_batch
                 gen_loss_epoch += gen_loss_batch
                 enc_loss_epoch += enc_loss_batch
@@ -298,12 +304,13 @@ class CVAEGAN(Image2ImageGenerativeModel):
                 self._log(epoch+1, epoch_train_time)
 
 
-    def _optimize(self, dataset, batch_size, adv_steps, gen_steps):
+    def _optimize(self, dataset, adv_steps, gen_steps):
         for i in range(adv_steps):
-            current_batch_x, current_batch_y = dataset.get_next_batch(batch_size)
+            current_batch_x, current_batch_y = dataset.get_next_batch(self.batch_size)
             Z_noise = self._generator.sample_noise(n=len(current_batch_x))
             _, adv_loss_batch = self._sess.run([self._adv_optimizer_op, self._adv_loss], feed_dict={
-                self._X_input: current_batch_x, self._Y_input: current_batch_y, self._Z_input: Z_noise, self._is_training: True
+                self._X_input: current_batch_x, self._Y_input: current_batch_y, self._Z_input: Z_noise, self._is_training: True,
+                self._output_label_real: self.get_random_label(is_real=True), self._output_label_fake: self.get_random_label(is_real=False)
             })
 
         for i in range(gen_steps):
@@ -319,15 +326,21 @@ class CVAEGAN(Image2ImageGenerativeModel):
 
 
     def _log_results(self, epoch, epoch_time):
-        summary = self._sess.run(self._merged_summaries, feed_dict={self._X_input: self._x_test, self._Y_input: self._y_test,
-                                 self._Z_input: self._z_test,
-                                 self._epoch_time: epoch_time, self._is_training: False, self._epoch_nr: epoch})
+        summary = self._sess.run(
+            self._merged_summaries, feed_dict={self._X_input: self._x_test, self._Y_input: self._y_test,
+            self._Z_input: self._z_test, self._epoch_time: epoch_time, self._is_training: False, self._epoch_nr: epoch,
+            self._output_label_real: self.get_random_label(is_real=True, size=self._nr_test),
+            self._output_label_fake: self.get_random_label(is_real=False, size=self._nr_test)}
+        )
         self._writer1.add_summary(summary, epoch)
         nr_test = len(self._x_test)
-        summary = self._sess.run(self._merged_summaries, feed_dict={self._X_input: self._trainset.get_xdata()[:nr_test],
-                                 self._Z_input: self._z_test,
-                                 self._Y_input: self._trainset.get_ydata()[:nr_test],
-                                 self._epoch_time: epoch_time, self._is_training: False, self._epoch_nr: epoch})
+        summary = self._sess.run(
+            self._merged_summaries, feed_dict={self._X_input: self._trainset.get_xdata()[:nr_test],
+            self._Z_input: self._z_test, self._Y_input: self._trainset.get_ydata()[:nr_test],
+            self._epoch_time: epoch_time, self._is_training: False, self._epoch_nr: epoch,
+            self._output_label_real: self.get_random_label(is_real=True, size=self._nr_test),
+             self._output_label_fake: self.get_random_label(is_real=False, size=self._nr_test)}
+        )
         self._writer2.add_summary(summary, epoch)
         if self._image_shape is not None:
             self.plot_samples(inpt_x=self._x_test[:10], inpt_y=self._y_test[:10], sess=self._sess, image_shape=self._image_shape,
@@ -412,7 +425,9 @@ class CVAEGAN(Image2ImageGenerativeModel):
             for go, gradient_ops in enumerate(self._monitor_dict["Gradients"][0]):
                 grads = [self._sess.run(gv[0], feed_dict={
                             self._X_input: self._x_test, self._Y_input: self._y_test,
-                            self._Z_input: self._z_test, self._is_training: False
+                            self._Z_input: self._z_test, self._is_training: False,
+                            self._output_label_real: self.get_random_label(is_real=True, size=self._nr_test),
+                            self._output_label_fake: self.get_random_label(is_real=False, size=self._nr_test)
                             }) for gv in gradient_ops]
 
                 for op_idx, op in enumerate([np.mean, np.max, np.min]):
@@ -432,11 +447,11 @@ class CVAEGAN(Image2ImageGenerativeModel):
         axs[0].legend()
         axs[0].set_ylim([axy_min, axy_max])
 
-        current_batch_x, current_batch_y = self._trainset.get_next_batch(batch_size)
+        current_batch_x, current_batch_y = self._trainset.get_next_batch(self.batch_size)
         Z_noise = self._generator.sample_noise(n=len(current_batch_x))
 
         print("Batch ", epoch)
-        colors = ["green", "blue", "red", "orange", "purple", "brown"]
+        colors = ["green", "blue", "red", "orange", "purple", "brown", "gray", "pink", "cyan", "olive"]
         for k, key in enumerate(self._monitor_dict):
             if key == "Gradients":
                 continue
@@ -444,7 +459,9 @@ class CVAEGAN(Image2ImageGenerativeModel):
                 self._monitor_dict[key][0],
                 feed_dict={
                     self._X_input: current_batch_x, self._Y_input: current_batch_y,
-                    self._Z_input: Z_noise, self._is_training: True
+                    self._Z_input: Z_noise, self._is_training: True,
+                    self._output_label_real: self.get_random_label(is_real=True),
+                    self._output_label_fake: self.get_random_label(is_real=False)
             })
             for kr, key_result in enumerate(key_results):
                 try:
@@ -494,9 +511,22 @@ class CVAEGAN(Image2ImageGenerativeModel):
         plt.close("all")
 
 
+    def get_random_label(self, is_real, size=None):
+        if size is None:
+            size = self.batch_size
+        labels_shape = [size, *self._output_adv_real.shape.as_list()[1:]]
+        labels = np.ones(shape=labels_shape)
+        if self._random_labeling > 0:
+            relabel_mask = np.random.binomial(n=1, p=self._random_labeling, size=labels_shape) == 1
+            labels[relabel_mask] = 0
+        if not is_real:
+            labels = 1 - labels
+        return labels
+
+
 if __name__ == '__main__':
     ########### Image input
-    if "lhcb_data2" in os.getcwd():
+    if "lhcb_data" in os.getcwd():
         os.environ["CUDA_VISIBLE_DEVICES"]="1"
         gpu_frac = 0.2
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_frac)
@@ -505,7 +535,7 @@ if __name__ == '__main__':
         gpu_options = None
 
     import pickle
-    if "lhcb_data2" in os.getcwd():
+    if "lhcb_data" in os.getcwd():
         data_path = "../../../Data/fashion_mnist"
     else:
         data_path = "/home/tneuer/Backup/Algorithmen/0TestData/image_to_image/fashion_mnist"
@@ -530,9 +560,9 @@ if __name__ == '__main__':
 
     param_dict = {
             "adv_steps": [1],
-            "architecture": ["keraslike", "inception1", "inception2"],
-            "batch_size": [1, 4, 8],
-            "feature_matching": [True],
+            "architecture": ["keraslike"],
+            "batch_size": [8],
+            "feature_matching": [True, False],
             "gen_steps": [1],
             "is_patchgan": [True],
             "invert_images": [True, False],
@@ -541,6 +571,7 @@ if __name__ == '__main__':
             "lr": [0.0001, 0.00005],
             "lr_adv": [0.000005],
             "optimizer": [tf.train.AdamOptimizer],
+            "random_labeling": [0.01, 0.05, 0.1],
             "z_dim": [32, 64],
     }
     sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=50, allow_repetition=True)
@@ -559,6 +590,7 @@ if __name__ == '__main__':
         loss = str(params["loss"])
         is_patchGAN = bool(params["is_patchgan"])
         invert_images = bool(params["invert_images"])
+        random_labeling = float(params["random_labeling"])
 
         x_train = x_train_orig
         x_test = x_test_orig
@@ -602,7 +634,7 @@ if __name__ == '__main__':
         compile_params = {
             "loss": loss, "learning_rate": learning_rate, "learning_rate_adv": learning_rate_adv,
             "optimizer": optimizer, "lmbda": lmbda, "feature_matching": feature_matching,
-            "label_smoothing": label_smoothing
+            "label_smoothing": label_smoothing, "random_labeling": random_labeling
 
         }
         train_params = {

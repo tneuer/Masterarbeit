@@ -130,6 +130,7 @@ class GenerativeModel():
             self._x_test = self._trainset.sample(n=nr_samples, keep=True)
         else:
             self._x_test = x_test
+        self._nr_test = len(self._x_test)
         self._z_test = self._generator.sample_noise(n=len(self._x_test))
 
 
@@ -320,6 +321,7 @@ class ConditionalGenerativeModel(GenerativeModel):
             self._x_test, self._y_test = self._trainset.sample(n=nr_samples, keep=True)
         else:
             self._x_test, self._y_test = x_test, y_test
+        self._nr_test = len(self._x_test)
         self._z_test = self._generator.sample_noise(n=len(self._x_test))
 
 
@@ -416,6 +418,7 @@ class Image2ImageGenerativeModel(GenerativeModel):
             self._x_test, self._y_test = self._trainset.sample(n=nr_samples, keep=True)
         else:
             self._x_test, self._y_test = x_test, y_test
+        self._nr_test = len(self._x_test)
 
 
     def _log_results(self, epoch, epoch_time):
@@ -486,5 +489,4 @@ class CyclicGenerativeModel(Image2ImageGenerativeModel):
                                                     epoch=epoch, path=path)
 
 
-def nothing():
-    pass
+

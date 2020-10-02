@@ -149,7 +149,6 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
 
 
 def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, ignore=None):
-    import random
     if isinstance(paths_to_outputs, str):
         paths_to_outputs = [paths_to_outputs]
     if ignore is None:
@@ -197,6 +196,30 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
         os.remove(pdf)
     merger.write(save_path+"/samples.pdf")
     merger.close()
+
+
+def concatenate_images(paths_to_outputs, image_name, save_path):
+    if isinstance(paths_to_outputs, str):
+        paths_to_outputs = [paths_to_outputs]
+    subfolders = [f.path for fpath in paths_to_outputs for f in os.scandir(fpath) if f.is_dir() ]
+    subfolders.sort(key=natural_keys)
+    figs = []
+    for i, folder in enumerate(subfolders):
+        if i % 10 == 0:
+            print(i+1, "/", len(subfolders), ":", folder)
+        image_path = [f.path for f in os.scandir(folder) if image_name in f.path]
+        if len(image_path) == 0:
+            print("{} does not contain image.".format(folder))
+            continue
+        else:
+            assert len(image_path) == 1, "Ambiguous files in {}.".format(folder)
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20, 16))
+        image = imageio.imread(image_path[0])
+        ax.imshow(image)
+        ax.set_title(folder)
+        figs.append(fig)
+
+    savefigs(figures=figs, save_path=save_path+"{}.pdf".format(image_name))
 
 
 def create_loss_figure(paths_to_outputs, save_path, ignore=None):
@@ -301,19 +324,20 @@ if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
     results_folder = "../../Results/ServerTemp/Test/"
     include_folders = [results_folder]
-
     subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
+
     include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "nr_params", "nr_gen_params", "nr_disc_params",
-                "is_patchgan", "loss", "lmbda", "optimizer", "learning_rate", "batch_size", "nr_train", "shuffle",
+                "is_patchgan", "loss", "optimizer", "batch_size", "nr_train", "shuffle",
                 "gen_steps", "adv_steps", "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing", "invert_images",
                 "feature_matching"]
-    pairwise = [["optimizer", "learning_rate"], ["feature_matching", "loss"]]
+    pairwise = [] #[["feature_matching", "loss"], ["optimizer", "learning_rate"]],
 
-    # move_to_exit(paths_to_outputs=results_folder)
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
     # create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
+    # concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
+    # move_to_exit(paths_to_outputs=results_folder)
     create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder,
                                pairwise=pairwise)
 
