@@ -350,7 +350,8 @@ if __name__ == '__main__':
         }
 
         config_data = copy.deepcopy(init_params); config_data.update(compile_params); config_data.update(train_params)
-        config_data["nr_train"] = len(x_test)
+        config_data["nr_train"] = len(x_train)
+        config_data["nr_test"] = len(x_test)
         config_data["invert_images"] = invert_images
         config_data["architecture"] = params["architecture"]
         config_data["optimizer"] = config_data["optimizer"].__name__

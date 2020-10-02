@@ -42,9 +42,19 @@ def run_agorithm(algorithm, init_params, compile_params, train_params, path_savi
         if config_data is not None:
             config_data["nr_params"] = network.get_number_params()
             config_data["nr_gen_params"] = network._generator.get_number_params()
+            config_data["sampler"] = network.get_sampling_distribution()
+            if algorithm.__name__ == "CycleGAN":
+                config_data.update({"generator_out": network._generator_xy._output_layer.name,
+                                   "generator_out_yx": network._generator_yx._output_layer.name
+                                   })
+            elif algorithm.__name__ == "Pix2PixGAN":
+                config_data.update({"generator_out": network._generator._output_layer.name})
+            elif algorithm.__name__ == "CVAEGAN":
+                config_data.update({"generator_out": network._generator._output_layer.name})
+            elif algorithm.__name__ == "BiCycleGAN":
+                config_data.update({"generator_out": network._generator._output_layer.name})
             with open(path_saving+"/config.json", "w") as f:
                 json.dump(config_data, f, indent=4)
-
         network.train(**train_params)
         with open(path_saving+"/EXIT_FLAG0.txt", "w") as f:
             f.write("EXIT STATUS: 0. No errors or warnings.")

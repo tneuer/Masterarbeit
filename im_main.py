@@ -14,6 +14,7 @@ if "lhcb_data2" in os.getcwd():
 import sys
 sys.path.insert(1, "Preprocessing")
 sys.path.insert(1, "TFModels")
+sys.path.insert(1, "TFModels/Im2Im")
 sys.path.insert(1, "TFModels/building_blocks")
 sys.path.insert(1, "Utilities")
 import json
@@ -29,9 +30,11 @@ if "lhcb_data2" in os.getcwd():
 else:
     gpu_options = None
 
-from TFModels.PGAN import create_algorithm
-from TFModels.CycleGAN_OO import CycleGAN
-from TFModels.Pix2Pix_OO import Pix2PixGAN
+from Im2Im.CycleGAN_OO import CycleGAN
+from Im2Im.Pix2Pix_OO import Pix2PixGAN
+from Im2Im.CVAEGAN_OO import CVAEGAN
+from Im2Im.BiCycleGAN_OO import BiCycleGAN
+
 import Preprocessing.initialization as init
 from TFModels.building_blocks.layers import logged_dense, conv2d_logged, conv2d_transpose_logged, reshape_layer
 from TFModels.building_blocks.layers import residual_block, unet, unet_original, inception_block
@@ -42,60 +45,73 @@ from generativeModels import GenerativeModel
 ############################################################################################################
 # Parameter definiton
 ############################################################################################################
+
 param_dict = {
-            "optimizer": [tf.train.AdamOptimizer],
-            "batch_size": [1],
-            "lmbda": [5, 10, 50, 100],
-            "learning_rate": [0.0002],
-            "loss": ["wasserstein", "L1", "cross-entropy"],
-            "is_patchgan": [True],
-            "gen_steps": [1, 5],
-            "shuffle": [False],
-            "algorithm": [Pix2PixGAN],
-            "architecture": ["dense"]
+        "adv_steps": [1],
+        "algorithm": [BiCycleGAN, CVAEGAN],
+        "architecture": ["keraslike"],
+        "batch_size": [8],
+        "feature_matching": [True, False],
+        "gen_steps": [1],
+        "is_patchgan": [True, False],
+        "invert_images": [True],
+        "label_smoothing": [0.9, 0.95],
+        "lmbda_kl": [0.01, 1, 5],
+        "lmbda_y": [0.01, 0.1, 1],
+        "lmbda_z": [0.01, 1, 5],
+        "loss": ["KL", "L2", "cross-entropy", "wasserstein"],
+        "learning_rate": [0.0001, 0.00005],
+        "learning_rate_adv": [0.000005],
+        "optimizer": [tf.train.AdamOptimizer],
+        "random_labeling": [0.01, 0.05, 0.1],
+        "z_dim": [32, 64],
 }
 sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=30, allow_repetition=True)
 
 for i, params in enumerate(sampled_params):
 
     ########### Architecturea
-    activation = tf.nn.leaky_relu
-    optimizer = params["optimizer"]
-    learning_rate = float(params["learning_rate"])
-    epochs = 29
+    architecture = str(params["architecture"])
+    adv_steps = int(params["adv_steps"])
+    algorithm = params["algorithm"]
+    algorithm_name = algorithm.__name__
+    architecture_path = "../Architectures/Im2Im/CVAEGAN/{}.json".format(architecture)
     batch_size = int(params["batch_size"])
-    padding1 = {"top": 4, "bottom": 4, "left":0, "right":0}
-    padding2 = {"top": 6, "bottom": 6, "left":0, "right":0}
-    samplesize = "Debug"
+    learning_rate = float(params["learning_rate"])
+    learning_rate_adv = float(params["learning_rate_adv"])
+    label_smoothing = float(params["label_smoothing"])
+    lmbda_kl = int(params["lmbda_kl"])
+    lmbda_y = int(params["lmbda_y"])
+    lmbda_z = int(params["lmbda_z"])
+    optimizer = params["optimizer"]
+    feature_matching = bool(params["feature_matching"])
+    gen_steps = int(params["gen_steps"])
     loss = str(params["loss"])
     is_patchgan = bool(params["is_patchgan"])
-    lmbda = float(params["lmbda"])
-    disc_steps = 1
-    gen_steps = int(params["gen_steps"])
-    shuffle = bool(params["shuffle"])
-    algorithm = params["algorithm"].__name__
-    log_per_epoch = 10
-    arch = params["architecture"]
-    architecture_path = "../Architectures/Pix2Pix/{}.json".format(arch)
-    print(arch, loss)
-    # architecture_path = "../Architectures/Pix2Pix/unet{}.json".format(depth)
+    invert_images = bool(params["invert_images"])
+    random_labeling = float(params["random_labeling"])
+    z_dim = int(params["z_dim"])
 
+    epochs = 32
+    log_per_epoch = 20
+    padding1 = {"top": 4, "bottom": 4, "left":0, "right":0}
+    padding2 = {"top": 6, "bottom": 6, "left":0, "right":0}
     is_wasserstein = True if loss == "wasserstein" else False
 
     architectures = GenerativeModel.load_from_json(architecture_path)
-    gen_xy_architecture = architectures["Generator"]
-    disc_xy_architecture = architectures["Discriminator"]
-    if is_patchgan:
-        if is_wasserstein:
-            disc_xy_architecture[-1][1]["activation"] = tf.identity
-        else:
-            disc_xy_architecture[-1][1]["activation"] = tf.nn.sigmoid
-    else:
-        disc_xy_architecture[-1][1]["activation"] = tf.nn.leaky_relu
-        disc_xy_architecture.append([tf.layers.flatten, {}])
-        disc_xy_architecture.append([tf.layers.dense, {"units": 128, "activation": activation}])
+    enc_architecture = architectures["Encoder"]
+    gen_architecture = architectures["Generator"]
+    adv_architecture = architectures["Adversarial"]
+    if is_patchgan and is_wasserstein:
+        adv_architecture[-1][1]["activation"] = tf.identity
+        adv_architecture[-1][1]["filters"] = 1
+    elif is_patchgan and not is_wasserstein:
+        adv_architecture[-1][1]["activation"] = tf.nn.sigmoid
+        adv_architecture[-1][1]["filters"] = 1
+    elif not is_patchgan:
+        adv_architecture[-1][1]["activation"] = tf.nn.leaky_relu
 
-    if "lhcb_data2" in os.getcwd():
+    if "lhcb_data" in os.getcwd():
         path_loading = "../Data/B2Dmunu/LargeSample"
         path_results = "../Results/B2Dmunu"
     else:
@@ -111,23 +127,8 @@ for i, params in enumerate(sampled_params):
     with open("{}/calo_images.pickle".format(path_loading), "rb") as f:
         train_y = pickle.load(f)
     image_shape = [64, 64, 1]
-    train_x = padding_zeros(train_x, **padding1)
-    train_y = padding_zeros(train_y, **padding2).reshape([-1, *image_shape])
-
-    # if "lhcb_data2" in os.getcwd():
-    #     data_path = "../Data/fashion_mnist"
-    # else:
-    #     data_path = "/home/tneuer/Backup/Algorithmen/0TestData/image_to_image/mnist"
-    # with open("{}/train_images.pickle".format(data_path), "rb") as f:
-    #     train_x = pickle.load(f)[0].reshape(-1, 28, 28, 1) / 255
-    # with open("{}/train_images_rotated.pickle".format(data_path), "rb") as f:
-    #     train_y = pickle.load(f).reshape(-1, 28, 28, 1) / 255
-    # image_shape = [32, 32, 1]
-    # padding_val = 2
-    # train_x = padding_zeros(train_x, top=padding_val, bottom=padding_val, left=padding_val, right=padding_val).reshape([-1, *image_shape])
-    # train_y = padding_zeros(train_y, top=padding_val, bottom=padding_val, left=padding_val, right=padding_val).reshape([-1, *image_shape])
-
-
+    train_x = padding_zeros(train_x, **padding1)[:50000]
+    train_y = padding_zeros(train_y, **padding2).reshape([-1, *image_shape])[:50000]
 
     energy_scaler = np.max(train_y)
     train_x = np.clip(train_x, a_min=0, a_max=energy_scaler)
@@ -141,18 +142,46 @@ for i, params in enumerate(sampled_params):
     test_y = train_y[-nr_test:]
     train_y = train_y[:-nr_test]
 
-    nr_train = train_x.shape[0]
-    nr_test = test_x.shape[0]
-
-    logging_calo = test_y[:100]
-
-    print(train_x.shape)
-    print(train_y.shape)
-    print(np.max(train_x))
-    print(np.max(train_y))
-
     nr_train = len(train_x)
     nr_test = len(test_x)
+    inpt_dim = train_x[0].shape
+    opt_dim = train_y[0].shape
+    nr_batches = (nr_train / batch_size)
+    batch_log_step = int(1/log_per_epoch*nr_batches)
+
+    if invert_images:
+        train_x = 1 - train_x
+        train_y = 1 - train_y
+        test_x = 1 - test_x
+        test_y = 1 - test_y
+
+    assert np.max(train_x) == 1, "train_x maximum is not 1, but {}.".format(np.max(train_x))
+    assert np.max(train_y) == 1, "train_y maximum is not 1, but {}.".format(np.max(train_y))
+    assert np.max(test_x) <= 1, "test_x maximum is greater 1: {}.".format(np.max(test_x))
+    assert np.max(test_y) <= 1, "test_y maximum is greater 1: {}.".format(np.max(test_y))
+
+    print(train_x.shape, train_y.shape, test_x.shape, test_x.shape)
+
+    # import matplotlib.pyplot as plt
+    # fig, axs = plt.subplots(nrows=2, ncols=2)
+    # from functionsOnImages import get_energies, get_number_of_activated_cells
+    # axs[0, 0].hist([get_energies(train_x), get_energies(train_y)], label=["GAN", "MC"])
+    # axs[0, 0].legend()
+    # axs[0, 1].hist([get_energies(test_x), get_energies(test_y)], label=["GAN", "MC"])
+    # axs[0, 1].legend()
+    # axs[1, 0].hist([get_number_of_activated_cells(train_x.reshape(-1, 64, 64), threshold=6/6120),
+    #                get_number_of_activated_cells(train_y.reshape(-1, 64, 64), threshold=6/6120)], label=["GAN", "MC"])
+    # axs[1, 0].legend()
+    # axs[1, 1].hist([get_number_of_activated_cells(test_x.reshape(-1, 64, 64), threshold=6/6120),
+    #                get_number_of_activated_cells(test_y.reshape(-1, 64, 64), threshold=6/6120)], label=["GAN", "MC"])
+    # axs[1, 1].legend()
+
+    # n = 10
+    # fig, axs = plt.subplots(nrows=n, ncols=2, figsize=(20, 12))
+    # for i in range(n):
+    #     axs[i, 0].imshow(train_x[i].reshape(64, 64))
+    #     axs[i, 1].imshow(train_y[i].reshape(64, 64))
+    # plt.show()
 
 
     ############################################################################################################
@@ -160,67 +189,63 @@ for i, params in enumerate(sampled_params):
     ############################################################################################################
     if not os.path.exists(path_results):
         os.mkdir(path_results)
-    path_saving = init.initialize_folder(algorithm=algorithm, base_folder=path_results)
-
-    def prepare_algorithm(network, optimizer, learning_rate):
-        network.compile(optimizer=optimizer, learning_rate=learning_rate, lmbda=lmbda, loss=loss)
-        # network.set_attributes(keep_cols)
-        post_message = """\nCalo shape:
-                        \nAppend attributes at every layer: {}""".format(train_y.shape, False)
-        network.log_architecture(post_message=post_message)
-
-        nr_params = network.get_number_params()
-        sampler = network.get_sampling_distribution()
-        config_data.update({"nr_params": nr_params, "sampler": sampler, "optimizer": optimizer.__name__})
-        if algorithm == "CycleGAN":
-            config_data.update({"generator_out": network._generator_xy._output_layer.name,
-                               "generator_out_yx": network._generator_yx._output_layer.name
-                               })
-        elif algorithm == "Pix2PixGAN":
-            config_data.update({"generator_out": network._generator._output_layer.name})
-        else:
-            raise ValueError("Algorithm not implemented.")
-
-        with open(path_saving+"/config.json", "w") as f:
-            json.dump(config_data, f, indent=4)
-
-    nr_batches = (nr_train / batch_size)
-    log_batch_step = int(1/log_per_epoch*nr_batches)
-
-    config_data = init.create_config_file(globals())
-
+    path_saving = init.initialize_folder(algorithm=algorithm_name, base_folder=path_results)
 
     ############################################################################################################
     # Model Training
     ############################################################################################################
-    inpt_dim = train_x[0].shape
-    opt_dim = train_y[0].shape
+    if algorithm_name == "CycleGAN":
+        raise
+    elif algorithm_name == "Pix2PixGAN":
+        raise
+    elif algorithm_name == "CVAEGAN":
+        init_params = {
+            "x_dim": inpt_dim, "y_dim": opt_dim, "z_dim": z_dim, "enc_architecture": enc_architecture,
+            "gen_architecture": gen_architecture, "adversarial_architecture": adv_architecture, "folder": path_saving,
+            "is_patchgan": is_patchgan, "is_wasserstein": is_wasserstein
+        }
+        compile_params = {
+            "loss": loss, "learning_rate": learning_rate, "learning_rate_adv": learning_rate_adv,
+            "optimizer": optimizer, "lmbda": lmbda_y, "feature_matching": feature_matching,
+            "label_smoothing": label_smoothing, "random_labeling": random_labeling
 
-    try:
-        if algorithm == "CycleGAN":
-            network = CycleGAN(x_dim=inpt_dim, y_dim=opt_dim, gen_xy_architecture=gen_xy_architecture,
-                            disc_xy_architecture=disc_xy_architecture, gen_yx_architecture=gen_yx_architecture,
-                            disc_yx_architecture=disc_yx_architecture, PatchGAN=is_patchgan,
-                            folder=path_saving, is_wasserstein=is_wasserstein)
-            prepare_algorithm(network, optimizer, learning_rate)
-            network.train(x_train=train_x, y_train=train_y, x_test=test_x, y_test=test_y,
-                        epochs=epochs, batch_size=batch_size, disc_steps=disc_steps, gen_steps=gen_steps, log_step=1, gpu_options=gpu_options,
-                        shuffle=shuffle)
-        elif algorithm == "Pix2PixGAN":
-            network = Pix2PixGAN(x_dim=inpt_dim, y_dim=opt_dim, gen_architecture=gen_xy_architecture,
-                            disc_architecture=disc_xy_architecture, PatchGAN=is_patchgan,
-                            folder=path_saving, is_wasserstein=is_wasserstein)
-            prepare_algorithm(network, optimizer, learning_rate)
-            network.train(x_train=train_x, y_train=train_y, x_test=test_x, y_test=test_y,
-                        epochs=epochs, batch_size=batch_size, disc_steps=disc_steps, gen_steps=gen_steps, log_step=1, gpu_options=gpu_options,
-                        batch_log_step=log_batch_step)
-        else:
-            raise ValueError("Algorithm not implemented.")
-        with open(path_saving+"/EXIT_FLAG0.txt", "w") as f:
-            f.write("EXIT STATUS: 0. No errors or warnings.")
-        tf.reset_default_graph()
+        }
+        train_params = {
+            "x_train": train_x, "y_train": train_y, "x_test": test_x, "y_test": test_y, "epochs": epochs, "batch_size": batch_size,
+            "adv_steps": adv_steps, "gen_steps": gen_steps, "log_step": 1, "batch_log_step": batch_log_step,
+            "gpu_options": gpu_options
+        }
+    elif algorithm_name == "BiCycleGAN":
+        init_params = {
+            "x_dim": inpt_dim, "y_dim": opt_dim, "z_dim": z_dim, "enc_architecture": enc_architecture,
+            "gen_architecture": gen_architecture, "adversarial_architecture": adv_architecture, "folder": path_saving,
+            "is_patchgan": is_patchgan, "is_wasserstein": is_wasserstein
+        }
+        compile_params = {
+            "loss": loss, "learning_rate": learning_rate, "learning_rate_adv": learning_rate_adv,
+            "optimizer": optimizer, "lmbda_kl": lmbda_kl, "lmbda_y": lmbda_y, "lmbda_z": lmbda_z,
+            "feature_matching": feature_matching, "label_smoothing": label_smoothing, "random_labeling": random_labeling
 
-    except GeneratorExit as e:
-        with open(path_saving+"/EXIT_FLAG1.txt", "w") as f:
-            f.write("EXIT STATUS: 1. {}.".format(e))
-        tf.reset_default_graph()
+        }
+        train_params = {
+            "x_train": train_x, "y_train": train_y, "x_test": test_x, "y_test": test_y, "epochs": epochs, "batch_size": batch_size,
+            "adv_steps": adv_steps, "gen_steps": gen_steps, "log_step": 1, "batch_log_step": batch_log_step,
+            "gpu_options": gpu_options
+        }
+    else:
+        raise ValueError("Algorithm not implemented.")
+
+    config_data = copy.deepcopy(init_params); config_data.update(compile_params); config_data.update(train_params)
+    config_data["nr_train"] = len(train_x)
+    config_data["nr_test"] = len(test_x)
+    config_data["invert_images"] = invert_images
+    config_data["architecture"] = params["architecture"]
+    config_data["optimizer"] = config_data["optimizer"].__name__
+    config_data["algorithm"] = algorithm_name
+    for key in ["x_train", "y_train", "x_test", "y_test", "gpu_options"]:
+        config_data.pop(key)
+    config_data = init.function_to_string(config_data)
+
+    grid_search.run_agorithm(algorithm, init_params=init_params, compile_params=compile_params, train_params=train_params,
+                             path_saving=path_saving, config_data=config_data)
+    tf.reset_default_graph()

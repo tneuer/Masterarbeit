@@ -457,11 +457,6 @@ class Image2ImageGenerativeModel(GenerativeModel):
                                                     epoch=epoch, path=path)
 
 
-    def get_sampling_distribution(self):
-        return None
-
-
-
 class CyclicGenerativeModel(Image2ImageGenerativeModel):
 
     def plot_samples(self, inpt_x, inpt_y, sess, image_shape, epoch, path):

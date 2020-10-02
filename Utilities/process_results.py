@@ -187,6 +187,8 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
             for fig in figs:
                 del fig
             figs = []
+        elif (i+1) == len(subfolders):
+            savefigs(figures=figs, save_path=save_path+"/samples_{}.pdf".format(i+1))
 
     merger = PdfFileMerger()
     pdfs = [f.path for f in os.scandir(save_path) if ".pdf" in f.path]
