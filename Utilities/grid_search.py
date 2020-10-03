@@ -42,6 +42,22 @@ def run_agorithm(algorithm, init_params, compile_params, train_params, path_savi
         if config_data is not None:
             config_data["nr_params"] = network.get_number_params()
             config_data["nr_gen_params"] = network._generator.get_number_params()
+            try:
+                config_data["nr_adv_params"] = network._discriminator.get_number_params()
+            except AttributeError:
+                pass
+            try:
+                config_data["nr_adv_params"] = network._critic.get_number_params()
+            except AttributeError:
+                pass
+            try:
+                config_data["nr_adv_params"] = network._adversarial.get_number_params()
+            except AttributeError:
+                pass
+            try:
+                config_data["nr_enc_params"] = network._encoder.get_number_params()
+            except AttributeError:
+                pass
             config_data["sampler"] = network.get_sampling_distribution()
             if algorithm.__name__ == "CycleGAN":
                 config_data.update({"generator_out": network._generator_xy._output_layer.name,

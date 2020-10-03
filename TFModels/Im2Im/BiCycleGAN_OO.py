@@ -223,6 +223,15 @@ class BiCycleGAN(CVAEGAN):
         }
         self._check_count = [0 for key in self._check_dict]
 
+        if not os.path.exists(self._folder+"/Evaluation"):
+            pos.mkdir(self._folder+"/Evaluation")
+        os.mkdir(self._folder+"/Evaluation/Cells")
+        os.mkdir(self._folder+"/Evaluation/CenterOfMassX")
+        os.mkdir(self._folder+"/Evaluation/CenterOfMassY")
+        os.mkdir(self._folder+"/Evaluation/Energy")
+        os.mkdir(self._folder+"/Evaluation/MaxEnergy")
+        os.mkdir(self._folder+"/Evaluation/StdEnergy")
+
 
 
 if __name__ == '__main__':

@@ -191,7 +191,7 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
             savefigs(figures=figs, save_path=save_path+"/samples_{}.pdf".format(i+1))
 
     merger = PdfFileMerger()
-    pdfs = [f.path for f in os.scandir(save_path) if ".pdf" in f.path]
+    pdfs = [f.path for f in os.scandir(save_path) if ".pdf" in f.path and "samples_" in f.path]
     pdfs.sort(key=natural_keys)
     for pdf in pdfs:
         merger.append(pdf)
@@ -284,7 +284,11 @@ def create_statistical_summary(paths_to_outputs, subfolders, variables, save_pat
 
     for pair in pairwise:
         print("Processing: ", pair)
-        current_df = summary_df[[pair[0], pair[1], "Type"]]
+        try:
+            current_df = summary_df[[pair[0], pair[1], "Type"]]
+        except KeyError as e:
+            print("KeyError: {}".format(e))
+            continue
         aggregate_df = current_df.groupby([pair[0], pair[1], "Type"]).size().reset_index()
         aggregate_df["Pair"] = aggregate_df[pair[0]].astype(str) + "-" + aggregate_df[pair[1]].astype(str)
         aggregate_df.drop(pair, inplace=True, axis=1)
@@ -324,22 +328,22 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
-    results_folder = "../../Results/ServerTemp/Test/"
+    results_folder = "../../Results/Test/B2Dmunu/"
     include_folders = [results_folder]
     subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
 
-    include_folders = [results_folder+subfolder for subfolder in subfolders]
+    # include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "nr_params", "nr_gen_params", "nr_disc_params",
                 "is_patchgan", "loss", "optimizer", "batch_size", "nr_train", "shuffle",
                 "gen_steps", "adv_steps", "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing", "invert_images",
                 "feature_matching"]
-    pairwise = [] #[["feature_matching", "loss"], ["optimizer", "learning_rate"]],
+    pairwise = [["feature_matching", "loss"], ["optimizer", "learning_rate"]]
 
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
     # create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
     # concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
     # move_to_exit(paths_to_outputs=results_folder)
-    create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder,
-                               pairwise=pairwise)
+    # create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder,
+    #                            pairwise=pairwise)
 

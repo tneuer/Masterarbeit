@@ -405,12 +405,22 @@ class CVAEGAN(Image2ImageGenerativeModel):
                 "TensorRelation": np.logical_and
             },
             "Generator outputs zeros": {
-                "Tensors": [self._output_gen_from_encoding],
-                "OPonTensors": [np.max],
-                "Relation": ["<"], "Threshold": [0.05]
+                "Tensors": [self._output_gen_from_encoding, self._output_gen_from_encoding],
+                "OPonTensors": [np.max, np.min],
+                "Relation": ["<", ">"], "Threshold": [0.05, 0.95],
+                "TensorRelation": np.logical_or
             }
         }
         self._check_count = [0 for key in self._check_dict]
+
+        if not os.path.exists(self._folder+"/Evaluation"):
+            pos.mkdir(self._folder+"/Evaluation")
+        os.mkdir(self._folder+"/Evaluation/Cells")
+        os.mkdir(self._folder+"/Evaluation/CenterOfMassX")
+        os.mkdir(self._folder+"/Evaluation/CenterOfMassY")
+        os.mkdir(self._folder+"/Evaluation/Energy")
+        os.mkdir(self._folder+"/Evaluation/MaxEnergy")
+        os.mkdir(self._folder+"/Evaluation/StdEnergy")
 
 
     def evaluate(self, true, condition, epoch):
@@ -507,6 +517,26 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._total_log_time += (time.clock() - log_start)
         fig.suptitle("Train {} / Log {} / Fails {}".format(np.round(self._total_train_time, 2), np.round(self._total_log_time, 2),
                                                             self._check_count))
+
+        fake = self._sess.run(self._output_gen_from_encoding, feed_dict={
+                    self._X_input: self._x_test, self._Z_input: self._z_test, self._is_training: False
+        })
+        true = self._y_test.reshape([-1, self._image_shape[0], self._image_shape[1]])
+        fake = fake.reshape([-1, self._image_shape[0], self._image_shape[1]])
+        build_histogram(true=true, fake=fake, function=get_energies, name="Energy", epoch=epoch,
+                        folder=self._folder)
+        build_histogram(true=true, fake=fake, function=get_number_of_activated_cells, name="Cells", epoch=epoch,
+                        folder=self._folder, threshold=6/6120)
+        build_histogram(true=true, fake=fake, function=get_max_energy, name="MaxEnergy", epoch=epoch,
+                        folder=self._folder)
+        build_histogram(true=true, fake=fake, function=get_center_of_mass_x, name="CenterOfMassX", epoch=epoch,
+                        folder=self._folder, image_shape=self._image_shape)
+        build_histogram(true=true, fake=fake, function=get_center_of_mass_y, name="CenterOfMassY", epoch=epoch,
+                        folder=self._folder, image_shape=self._image_shape)
+        build_histogram(true=true, fake=fake, function=get_std_energy, name="StdEnergy", epoch=epoch,
+                        folder=self._folder)
+        plt.close("all")
+
         plt.savefig(self._folder+"/TrainStatistics.png")
         plt.close("all")
 

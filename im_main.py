@@ -9,8 +9,8 @@
 """
 import os
 import copy
-if "lhcb_data2" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+if "lhcb_data" in os.getcwd():
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
 import sys
 sys.path.insert(1, "Preprocessing")
 sys.path.insert(1, "TFModels")
@@ -23,15 +23,13 @@ import grid_search
 
 import numpy as np
 import tensorflow as tf
-if "lhcb_data2" in os.getcwd():
-    gpu_fraction = 0.3
+if "lhcb_data" in os.getcwd():
+    gpu_fraction = 0.2
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
     print("1 GPU limited to {}% memory.".format(round(gpu_fraction*100)))
 else:
     gpu_options = None
 
-from Im2Im.CycleGAN_OO import CycleGAN
-from Im2Im.Pix2Pix_OO import Pix2PixGAN
 from Im2Im.CVAEGAN_OO import CVAEGAN
 from Im2Im.BiCycleGAN_OO import BiCycleGAN
 
@@ -49,8 +47,8 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN, CVAEGAN],
-        "architecture": ["keraslike"],
-        "batch_size": [8],
+        "architecture": ["keraslike", "keraslike2"] #, "mix", "unet3", "unet4"],
+        "batch_size": [4, 8, 16],
         "feature_matching": [True, False],
         "gen_steps": [1],
         "is_patchgan": [True, False],
@@ -66,7 +64,7 @@ param_dict = {
         "random_labeling": [0.01, 0.05, 0.1],
         "z_dim": [32, 64],
 }
-sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=30, allow_repetition=True)
+sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=50, allow_repetition=True)
 
 for i, params in enumerate(sampled_params):
 
@@ -161,7 +159,6 @@ for i, params in enumerate(sampled_params):
     assert np.max(test_y) <= 1, "test_y maximum is greater 1: {}.".format(np.max(test_y))
 
     print(train_x.shape, train_y.shape, test_x.shape, test_x.shape)
-
     # import matplotlib.pyplot as plt
     # fig, axs = plt.subplots(nrows=2, ncols=2)
     # from functionsOnImages import get_energies, get_number_of_activated_cells
