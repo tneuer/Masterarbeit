@@ -153,7 +153,7 @@ class CVAEGAN(Image2ImageGenerativeModel):
             return tf.math.multiply(self._output_label_real, label_smoothing)
         def get_labels_zero():
             return self._output_label_fake
-        eps = 1e-7
+        eps = 1e-6
         self._label_smoothing = label_smoothing
         self._random_labeling = random_labeling
         ## Kullback-Leibler divergence
@@ -424,8 +424,28 @@ class CVAEGAN(Image2ImageGenerativeModel):
 
 
     def evaluate(self, true, condition, epoch):
+        print("Batch ", epoch)
         log_start = time.clock()
         self._batches.append(epoch)
+
+        fake = self._sess.run(self._output_gen_from_encoding, feed_dict={
+                    self._X_input: self._x_test, self._Z_input: self._z_test, self._is_training: False
+        })
+        true = self._y_test.reshape([-1, self._image_shape[0], self._image_shape[1]])
+        fake = fake.reshape([-1, self._image_shape[0], self._image_shape[1]])
+        build_histogram(true=true, fake=fake, function=get_energies, name="Energy", epoch=epoch,
+                        folder=self._folder)
+        build_histogram(true=true, fake=fake, function=get_number_of_activated_cells, name="Cells", epoch=epoch,
+                        folder=self._folder, threshold=6/6120)
+        build_histogram(true=true, fake=fake, function=get_max_energy, name="MaxEnergy", epoch=epoch,
+                        folder=self._folder)
+        build_histogram(true=true, fake=fake, function=get_center_of_mass_x, name="CenterOfMassX", epoch=epoch,
+                        folder=self._folder, image_shape=self._image_shape)
+        build_histogram(true=true, fake=fake, function=get_center_of_mass_y, name="CenterOfMassY", epoch=epoch,
+                        folder=self._folder, image_shape=self._image_shape)
+        build_histogram(true=true, fake=fake, function=get_std_energy, name="StdEnergy", epoch=epoch,
+                        folder=self._folder)
+
         fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(18, 10))
         axs = np.ravel(axs)
         if "Gradients" in self._monitor_dict:
@@ -460,7 +480,6 @@ class CVAEGAN(Image2ImageGenerativeModel):
         current_batch_x, current_batch_y = self._trainset.get_next_batch(self.batch_size)
         Z_noise = self._generator.sample_noise(n=len(current_batch_x))
 
-        print("Batch ", epoch)
         colors = ["green", "blue", "red", "orange", "purple", "brown", "gray", "pink", "cyan", "olive"]
         for k, key in enumerate(self._monitor_dict):
             if key == "Gradients":
@@ -517,25 +536,6 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._total_log_time += (time.clock() - log_start)
         fig.suptitle("Train {} / Log {} / Fails {}".format(np.round(self._total_train_time, 2), np.round(self._total_log_time, 2),
                                                             self._check_count))
-
-        fake = self._sess.run(self._output_gen_from_encoding, feed_dict={
-                    self._X_input: self._x_test, self._Z_input: self._z_test, self._is_training: False
-        })
-        true = self._y_test.reshape([-1, self._image_shape[0], self._image_shape[1]])
-        fake = fake.reshape([-1, self._image_shape[0], self._image_shape[1]])
-        build_histogram(true=true, fake=fake, function=get_energies, name="Energy", epoch=epoch,
-                        folder=self._folder)
-        build_histogram(true=true, fake=fake, function=get_number_of_activated_cells, name="Cells", epoch=epoch,
-                        folder=self._folder, threshold=6/6120)
-        build_histogram(true=true, fake=fake, function=get_max_energy, name="MaxEnergy", epoch=epoch,
-                        folder=self._folder)
-        build_histogram(true=true, fake=fake, function=get_center_of_mass_x, name="CenterOfMassX", epoch=epoch,
-                        folder=self._folder, image_shape=self._image_shape)
-        build_histogram(true=true, fake=fake, function=get_center_of_mass_y, name="CenterOfMassY", epoch=epoch,
-                        folder=self._folder, image_shape=self._image_shape)
-        build_histogram(true=true, fake=fake, function=get_std_energy, name="StdEnergy", epoch=epoch,
-                        folder=self._folder)
-        plt.close("all")
 
         plt.savefig(self._folder+"/TrainStatistics.png")
         plt.close("all")

@@ -47,22 +47,22 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN, CVAEGAN],
-        "architecture": ["keraslike", "keraslike2"] #, "mix", "unet3", "unet4"],
+        "architecture": ["deeper", "keraslike2", "smaller", "VGG"],
         "batch_size": [4, 8, 16],
         "feature_matching": [True, False],
         "gen_steps": [1],
         "is_patchgan": [True, False],
-        "invert_images": [True],
+        "invert_images": [True, False],
         "label_smoothing": [0.9, 0.95],
-        "lmbda_kl": [0.01, 1, 5],
-        "lmbda_y": [0.01, 0.1, 1],
-        "lmbda_z": [0.01, 1, 5],
-        "loss": ["KL", "L2", "cross-entropy", "wasserstein"],
+        "lmbda_kl": [0, 0.01, 1],
+        "lmbda_y": [0, 0.01, 1],
+        "lmbda_z": [0, 0.01, 1],
+        "loss": ["KL", "cross-entropy"],
         "learning_rate": [0.0001, 0.00005],
         "learning_rate_adv": [0.000005],
         "optimizer": [tf.train.AdamOptimizer],
-        "random_labeling": [0.01, 0.05, 0.1],
-        "z_dim": [32, 64],
+        "random_labeling": [0.01, 0.05],
+        "z_dim": [64, 128],
 }
 sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=50, allow_repetition=True)
 
@@ -90,8 +90,8 @@ for i, params in enumerate(sampled_params):
     random_labeling = float(params["random_labeling"])
     z_dim = int(params["z_dim"])
 
-    epochs = 32
-    log_per_epoch = 20
+    epochs = 5
+    log_per_epoch = 40
     padding1 = {"top": 4, "bottom": 4, "left":0, "right":0}
     padding2 = {"top": 6, "bottom": 6, "left":0, "right":0}
     is_wasserstein = True if loss == "wasserstein" else False
@@ -133,7 +133,7 @@ for i, params in enumerate(sampled_params):
     train_x /= energy_scaler
     train_y /= energy_scaler
 
-    nr_test = int(min(0.1*len(train_x), 100))
+    nr_test = int(min(0.1*len(train_x), 300))
 
     test_x = train_x[-nr_test:]
     train_x = train_x[:-nr_test]
@@ -145,7 +145,7 @@ for i, params in enumerate(sampled_params):
     inpt_dim = train_x[0].shape
     opt_dim = train_y[0].shape
     nr_batches = (nr_train / batch_size)
-    batch_log_step = int(1/log_per_epoch*nr_batches)
+    batch_log_step = max(1, int(1/log_per_epoch*nr_batches))
 
     if invert_images:
         train_x = 1 - train_x

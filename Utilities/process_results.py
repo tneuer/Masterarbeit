@@ -109,7 +109,6 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
 
                     config_dict["Log"] = f_path
                     config_dict["Layers"] = layers_per_net
-                    # config_dict["Epochs"] = epoch
                     config_dict["Type"] = network_type
 
                 this_dict = {}
@@ -148,12 +147,12 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
     return info_df
 
 
-def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, ignore=None):
+def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, ignore=None, image_name="samples"):
     if isinstance(paths_to_outputs, str):
         paths_to_outputs = [paths_to_outputs]
     if ignore is None:
         ignore = "__//##//"
-    subfolders = [f.path+"/"+image_folder for fpath in paths_to_outputs for f in os.scandir(fpath) if f.is_dir() ]
+    subfolders = [f.path+"/"+image_folder for fpath in paths_to_outputs for f in os.scandir(fpath) if f.is_dir() and ignore not in f.path]
     subfolders.sort(key=natural_keys)
     figs = []
     nrows, ncols = get_layout(n=nr_images)
@@ -176,10 +175,9 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
             current_image_path = image_paths[im_id]
             image = imageio.imread(current_image_path)
             im_name = current_image_path.partition(image_folder+"/")[2]
-            ax.set_title("Image: {}".format(im_name))
+            ax.set_title(im_name)
             ax.imshow(image)
         figs.append(fig)
-        plt.close("all")
         if (i+1) % 10 == 0:
             savefigs(figures=figs, save_path=save_path+"/samples_{}.pdf".format(i+1))
             plt.cla()
@@ -196,7 +194,7 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
     for pdf in pdfs:
         merger.append(pdf)
         os.remove(pdf)
-    merger.write(save_path+"/samples.pdf")
+    merger.write(save_path+image_name+".pdf")
     merger.close()
 
 
@@ -269,19 +267,17 @@ def create_statistical_summary(paths_to_outputs, subfolders, variables, save_pat
     summary_df = create_index(paths_to_outputs=paths_to_outputs, variables=variables, save_path=None)
     summary_df["Type"] = [re.findall("[a-zA-Z0-9_]+/", log)[0][:-1] for log in summary_df["Log"]]
     figs = []
+
     for col in summary_df:
         print("Processing: ", col)
         if col not in ["Log", "Type"]:
             current_df = summary_df[[col, "Type"]]
             aggregate_df = current_df.groupby([col, "Type"]).size().reset_index()
             aggregate_df.columns = [col, "Type", "Count"]
-
             wide_aggregate_df = aggregate_df.pivot(index='Type', columns=col, values='Count')
-            wide_aggregate_df = wide_aggregate_df.reindex(index=subfolders)
             ax = wide_aggregate_df.plot.bar(rot=0)
             fig = plt.gcf()
             figs.append(fig)
-
     for pair in pairwise:
         print("Processing: ", pair)
         try:
@@ -328,22 +324,24 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
-    results_folder = "../../Results/Test/B2Dmunu/"
+    results_folder = "../../Results/ServerTemp/B2Dmunu/"
+    image_summary = "Energy"
     include_folders = [results_folder]
-    subfolders = ["1Good", "2Okey", "3Bad", "4Exit"]
+    subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
+    include_folders = [results_folder+subfolder for subfolder in subfolders]
 
-    # include_folders = [results_folder+subfolder for subfolder in subfolders]
-
-    use_vars = ["Exit", "y_dim", "z_dim", "keep_cols", "architecture", "nr_params", "nr_gen_params", "nr_disc_params",
-                "is_patchgan", "loss", "optimizer", "batch_size", "nr_train", "shuffle",
-                "gen_steps", "adv_steps", "dataset", "algorithm", "dropout", "batchnorm", "label_smoothing", "invert_images",
-                "feature_matching"]
+    use_vars = [
+        "x_dim", "y_dim", "z_dim", "architecture", "nr_params", "is_patchgan",
+        "loss", "optimizer", "learning_rate", "nr_train", "gen_steps", "adv_steps", "label_smoothing",
+        "feature_matching", "random_labeling", "dataset", "dropout", "batchnorm", "invert_images",
+    ]
     pairwise = [["feature_matching", "loss"], ["optimizer", "learning_rate"]]
 
-    create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
-    # create_image_summary(include_folders, image_folder="GeneratedSamples", nr_images=9, save_path=results_folder, ignore="4Exit")
+    # create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
+    # create_image_summary(include_folders, image_folder="Evaluation/{}".format(image_summary),
+    #                      nr_images=25, save_path=results_folder, ignore="4Exit", image_name=image_summary)
     # concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
     # move_to_exit(paths_to_outputs=results_folder)
-    # create_statistical_summary(results_folder, subfolders, variables=use_vars, save_path=results_folder,
-    #                            pairwise=pairwise)
+    create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
+                               pairwise=pairwise)
 

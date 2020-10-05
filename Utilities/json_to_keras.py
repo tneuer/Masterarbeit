@@ -62,6 +62,8 @@ def return_activated(inpt, tf_activation):
         raise NotImplementedError("{} not yet implemented (activation).".format(tf_activation))
 
 
+def json_to_txt()
+
 
 if __name__ == "__main__":
     from keras.models import Input
@@ -69,3 +71,4 @@ if __name__ == "__main__":
     inpt = Input(shape=[64, 64, 1])
 
     json_to_keras(inpt, path_to_json, network="Generator")
+
