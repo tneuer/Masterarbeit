@@ -7,6 +7,7 @@
     # Description :
 ####################################################################################
 """
+import sys
 import json
 import numpy as np
 
@@ -77,6 +78,10 @@ def run_agorithm(algorithm, init_params, compile_params, train_params, path_savi
     except GeneratorExit as e:
         with open(path_saving+"/EXIT_FLAG1.txt", "w") as f:
             f.write("EXIT STATUS: 1. {}.".format(e))
+    except:
+        with open(path_saving+"/EXIT_FLAG1.txt", "w") as f:
+            f.write("EXIT STATUS: 1. {}.".format(sys.exc_info()[0]))
+
 
 
 

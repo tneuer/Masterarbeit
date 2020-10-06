@@ -88,8 +88,9 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._std_layer = self._encoder_std.generate_net(self._Y_input)
 
         self._output_enc_with_noise = self._mean_layer + tf.exp(0.5*self._std_layer)*self._Z_input
-        self._gen_input = image_condition_concat(inputs=self._X_input, condition=self._output_enc_with_noise, name="real")
-        self._gen_input_from_encoding = image_condition_concat(inputs=self._X_input, condition=self._Z_input, name="real")
+        with tf.name_scope("Inputs"):
+            self._gen_input = image_condition_concat(inputs=self._X_input, condition=self._output_enc_with_noise, name="mod_z_real")
+            self._gen_input_from_encoding = image_condition_concat(inputs=self._X_input, condition=self._Z_input, name="mod_z")
         self._output_gen = self._generator.generate_net(self._gen_input)
         self._output_gen_from_encoding = self._generator.generate_net(self._gen_input_from_encoding)
         self._generator._input_dim = z_dim
@@ -119,7 +120,7 @@ class CVAEGAN(Image2ImageGenerativeModel):
 
 
     def compile(self, loss, optimizer, learning_rate=None, learning_rate_enc=None, learning_rate_gen=None, learning_rate_adv=None,
-                label_smoothing=1, lmbda=1, feature_matching=False, random_labeling=0):
+                label_smoothing=1, lmbda_kl=0.1, lmbda_y=1, feature_matching=False, random_labeling=0):
 
         if self._is_wasserstein and loss != "wasserstein":
             raise ValueError("If is_wasserstein is true in Constructor, loss needs to be wasserstein.")
@@ -135,8 +136,8 @@ class CVAEGAN(Image2ImageGenerativeModel):
         if learning_rate is not None and learning_rate_adv is None:
             learning_rate_adv = learning_rate
 
-        self._define_loss(loss=loss, label_smoothing=label_smoothing, lmbda=lmbda, feature_matching=feature_matching,
-                          random_labeling=random_labeling)
+        self._define_loss(loss=loss, label_smoothing=label_smoothing, lmbda_kl=lmbda_kl, lmbda_y=lmbda_y,
+                          feature_matching=feature_matching, random_labeling=random_labeling)
         with tf.name_scope("Optimizer"):
             self._enc_optimizer = optimizer(learning_rate=learning_rate_enc)
             self._enc_optimizer_op = self._enc_optimizer.minimize(self._enc_loss, var_list=self._get_vars("Encoder"), name="Encoder")
@@ -147,7 +148,7 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._summarise()
 
 
-    def _define_loss(self, loss, label_smoothing, lmbda, feature_matching, random_labeling):
+    def _define_loss(self, loss, label_smoothing, lmbda_kl, lmbda_y, feature_matching, random_labeling):
         possible_losses = ["cross-entropy", "L2", "wasserstein", "KL"]
         def get_labels_one():
             return tf.math.multiply(self._output_label_real, label_smoothing)
@@ -158,10 +159,10 @@ class CVAEGAN(Image2ImageGenerativeModel):
         self._random_labeling = random_labeling
         ## Kullback-Leibler divergence
         self._KLdiv = 0.5*(tf.square(self._mean_layer) + tf.exp(self._std_layer) - self._std_layer - 1)
-        self._KLdiv = tf.reduce_mean(self._KLdiv)
+        self._KLdiv = lmbda_kl*tf.reduce_mean(self._KLdiv)
 
         ## L1 loss
-        self._recon_loss = lmbda*tf.reduce_mean(tf.abs(self._Y_input - self._output_gen))
+        self._recon_loss = lmbda_y*tf.reduce_mean(tf.abs(self._Y_input - self._output_gen))
 
         ## Adversarial loss
         if loss == "cross-entropy":

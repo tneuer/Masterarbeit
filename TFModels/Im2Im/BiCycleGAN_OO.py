@@ -82,7 +82,7 @@ class BiCycleGAN(CVAEGAN):
         self._random_labeling = random_labeling
         ## Kullback-Leibler divergence
         self._KLdiv = 0.5*(tf.square(self._mean_layer) + tf.exp(self._std_layer) - self._std_layer - 1)
-        self._KLdiv = tf.reduce_mean(self._KLdiv)*lmbda_kl
+        self._KLdiv = lmbda_kl*tf.reduce_mean(self._KLdiv)
 
         ## L1 loss image space
         self._recon_loss_y = lmbda_y*tf.reduce_mean(tf.abs(self._Y_input - self._output_gen))

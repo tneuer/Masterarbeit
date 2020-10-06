@@ -37,8 +37,14 @@ class TrainedGenerator():
         self._sampler_params = eval(self._config["sampler"].split(' ', 1)[1])
         self._z_dim = self._config["z_dim"]
 
-        self._image_shape = self._config["image_shape"]
-        self._padding = self._config["padding"]
+        self._image_shape = self._config["y_dim"]
+        try:
+            self._padding = self._config["padding"]
+        except KeyError:
+            try:
+                self._padding = self._config["padding1"]
+            except KeyError:
+                self._padding = {"top": 4, "bottom": 4, "left":0, "right":0}
         self._generator_out = self._config["generator_out"]
 
         self._sess = tf.Session()

@@ -27,6 +27,7 @@ from functionsOnImages import get_center_of_mass_r
 from functionsOnImages import build_histogram_HTOS, crop_images
 
 from TrainedCycleGenerator import TrainedCycleGenerator
+from TrainedIm2Im import TrainedIm2Im
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -36,11 +37,11 @@ def natural_keys(text):
 
 if __name__ == "__main__":
 
-    nr_test_hist = 300
+    nr_test_hist = 500
     batch_size = 50
-    result_path = "../../Results"
-    include_all = ["ServerTemp/B2Dmunu/"]
-    save_path = "../../Results/ServerTemp/B2Dmunu/Summary.pdf"
+    result_path = "../../Results/"
+    include_all = ["ServerTemp/B2Dmunu/1Good"]
+    save_path = "../../Results/ServerTemp/B2Dmunu/1Good/Summary.pdf"
     models = [
             "{}/{}".format(folder, name) for folder in include_all for name in os.listdir(result_path+"/"+folder)
                     if os.path.isdir("{}/{}".format(result_path+"/"+folder, name))
@@ -78,6 +79,8 @@ if __name__ == "__main__":
         image_shape = [64, 64, 1]
         mc_data_images = padding_zeros(mc_data, top=6, bottom=6).reshape(-1, 64, 64, 1)
         gan_data_m = padding_zeros(gan_data, top=4, bottom=4)
+        gan_data_m = np.clip(gan_data_m, a_min=0, a_max=calo_scaler)
+        gan_data_m /= calo_scaler
         tracker_images_m = padding_zeros(tracker_images, top=6, bottom=6)
         tracker_images_m = np.reshape(tracker_images_m, newshape=[-1, image_shape[0], image_shape[1]])
 
@@ -104,18 +107,18 @@ if __name__ == "__main__":
                 generated_images.extend(batch_generated_images)
 
         else:
-            Generator = TrainedCycleGenerator(path_to_meta=meta_path, path_to_config=config_path)
+            Generator = TrainedIm2Im(path_to_meta=meta_path, path_to_config=config_path)
             nr_batches = int(nr_test_hist/batch_size)
             generated_images = []
             for i in range(nr_batches):
                 print("Generate", i+1, "/", nr_batches)
                 start = i*batch_size
                 end = (i+1)*batch_size
-                batch_generated_images = Generator.generate(x_inputs=gan_data_m[start:end], y_inputs=mc_data_images[start:end])
+                batch_generated_images = Generator.generate_from_condition(inputs=gan_data_m[start:end])
                 generated_images.extend(batch_generated_images)
 
         generated_images = np.array(generated_images)
-        generated_images = clip_outer(images=crop_images(generated_images, top=6, bottom=6), clipval=1/4)
+        generated_images = clip_outer(images=generated_images, clipval=1/4)
 
         #####################################################################################################
         # Build figures
@@ -127,10 +130,10 @@ if __name__ == "__main__":
                         get_energy_resolution: {"real_ET": tracker_real_ET, "energy_scaler": calo_scaler}}
 
 
-
-        htos_calo_images_mc = padding_zeros(mc_data, top=6, bottom=6)
-        htos_calo_images_im2im = padding_zeros(generated_images, top=6, bottom=6)
+        htos_calo_images_mc = padding_zeros(mc_data, top=6, bottom=6) / calo_scaler
+        htos_calo_images_im2im = generated_images
         htos_calo_images_gan = padding_zeros(gan_data.reshape([-1, 56, 64]), top=4, bottom=4)
+        htos_calo_images_gan = np.clip(htos_calo_images_gan, a_min=0, a_max=calo_scaler) / calo_scaler
 
         assert htos_calo_images_mc.shape == htos_calo_images_im2im.shape == htos_calo_images_gan.shape, "Shape mismatch."
 
@@ -161,7 +164,7 @@ if __name__ == "__main__":
                             function=func, name=colnames[func_idx], epoch="", folder=None, ax=axes[model_idx, func_idx],
                             labels=["MCTruth", "Im2Im", "GAN"], **params)
             if func_idx == 0:
-                fs = {"7": 10, "12": 12, "17": 13}
+                fs = {"2": 12, "3": 12, "7": 10, "12": 12, "13": 12, "17": 13}
                 axes[model_idx, func_idx].set_ylabel(model, fontsize=fs[str(len(models))])
             if model_idx != 0:
                 axes[model_idx, func_idx].set_title("")

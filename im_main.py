@@ -10,7 +10,7 @@
 import os
 import copy
 if "lhcb_data" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import sys
 sys.path.insert(1, "Preprocessing")
 sys.path.insert(1, "TFModels")
@@ -24,7 +24,7 @@ import grid_search
 import numpy as np
 import tensorflow as tf
 if "lhcb_data" in os.getcwd():
-    gpu_fraction = 0.2
+    gpu_fraction = 0.3
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
     print("1 GPU limited to {}% memory.".format(round(gpu_fraction*100)))
 else:
@@ -47,22 +47,22 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN, CVAEGAN],
-        "architecture": ["deeper", "keraslike2", "smaller", "VGG"],
-        "batch_size": [4, 8, 16],
-        "feature_matching": [True, False],
+        "architecture": ["keraslike2", "VGG"],
+        "batch_size": [4],
+        "feature_matching": [False],
         "gen_steps": [1],
-        "is_patchgan": [True, False],
-        "invert_images": [True, False],
+        "is_patchgan": [True],
+        "invert_images": [False],
         "label_smoothing": [0.9, 0.95],
-        "lmbda_kl": [0, 0.01, 1],
-        "lmbda_y": [0, 0.01, 1],
-        "lmbda_z": [0, 0.01, 1],
-        "loss": ["KL", "cross-entropy"],
+        "lmbda_kl": [0, 0.1, 1, 2],
+        "lmbda_y": [0, 0.1, 1, 2],
+        "lmbda_z": [0, 0.1, 1, 2],
+        "loss": ["cross-entropy"],
         "learning_rate": [0.0001, 0.00005],
-        "learning_rate_adv": [0.000005],
+        "learning_rate_adv": [0.000005, 0.00005],
         "optimizer": [tf.train.AdamOptimizer],
-        "random_labeling": [0.01, 0.05],
-        "z_dim": [64, 128],
+        "random_labeling": [0, 0.01],
+        "z_dim": [64],
 }
 sampled_params = grid_search.get_parameter_grid(param_dict=param_dict, n=50, allow_repetition=True)
 
@@ -78,9 +78,9 @@ for i, params in enumerate(sampled_params):
     learning_rate = float(params["learning_rate"])
     learning_rate_adv = float(params["learning_rate_adv"])
     label_smoothing = float(params["label_smoothing"])
-    lmbda_kl = int(params["lmbda_kl"])
-    lmbda_y = int(params["lmbda_y"])
-    lmbda_z = int(params["lmbda_z"])
+    lmbda_kl = float(params["lmbda_kl"])
+    lmbda_y = float(params["lmbda_y"])
+    lmbda_z = float(params["lmbda_z"])
     optimizer = params["optimizer"]
     feature_matching = bool(params["feature_matching"])
     gen_steps = int(params["gen_steps"])
@@ -133,7 +133,7 @@ for i, params in enumerate(sampled_params):
     train_x /= energy_scaler
     train_y /= energy_scaler
 
-    nr_test = int(min(0.1*len(train_x), 300))
+    nr_test = int(min(0.1*len(train_x), 100))
 
     test_x = train_x[-nr_test:]
     train_x = train_x[:-nr_test]
@@ -203,7 +203,7 @@ for i, params in enumerate(sampled_params):
         }
         compile_params = {
             "loss": loss, "learning_rate": learning_rate, "learning_rate_adv": learning_rate_adv,
-            "optimizer": optimizer, "lmbda": lmbda_y, "feature_matching": feature_matching,
+            "optimizer": optimizer, "lmbda_kl": lmbda_kl, "lmbda_y": lmbda_y, "feature_matching": feature_matching,
             "label_smoothing": label_smoothing, "random_labeling": random_labeling
 
         }
@@ -239,6 +239,7 @@ for i, params in enumerate(sampled_params):
     config_data["architecture"] = params["architecture"]
     config_data["optimizer"] = config_data["optimizer"].__name__
     config_data["algorithm"] = algorithm_name
+    config_data["padding1"] = padding1; config_data["padding2"] = padding2
     for key in ["x_train", "y_train", "x_test", "y_test", "gpu_options"]:
         config_data.pop(key)
     config_data = init.function_to_string(config_data)

@@ -36,11 +36,9 @@ def atoi(text):
 def natural_keys(text):
     return [ atoi(c) for c in re.split(r'(\d+)', text) ]
 
-def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell_info="", ignore=None):
+def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell_info="", rename=None):
     if isinstance(paths_to_outputs, str):
         paths_to_outputs = [paths_to_outputs]
-    if ignore is None:
-        ignore = []
     subfolders = [f.path for fpath in paths_to_outputs for f in os.scandir(fpath) if f.is_dir() ]
     info = []
     used_variables = ["Log", "Layers", "Epochs", "Type"]
@@ -118,7 +116,7 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
                         if var == "keep_cols":
                             this_dict[var] = "\n".join(config_dict[var])
                     except KeyError:
-                        this_dict[var] = "Not Implemented"
+                        this_dict[var] = "No Impl."
                 info.append(OrderedDict(this_dict))
 
         except FileNotFoundError:
@@ -137,6 +135,10 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
         if nr_unique == 1:
             to_append += "\n{}: {}".format(col, info_df.loc[0, col])
             info_df.drop(col, axis=1, inplace=True)
+
+    if rename is not None:
+        info_df.rename(columns=rename, inplace=True)
+
     to_append += "\n" + generell_info
     tabulation = tabulate(info_df, tablefmt="grid", headers="keys")
     if save_path is not None:
@@ -161,7 +163,11 @@ def create_image_summary(paths_to_outputs, image_folder, nr_images, save_path, i
             print(i+1, "/", len(subfolders), ":", folder)
         if ignore in folder:
             continue
-        image_paths = [f.path for f in os.scandir(folder)]
+        try:
+            image_paths = [f.path for f in os.scandir(folder)]
+        except FileNotFoundError:
+            print("File not found for {}.".format(folder))
+            continue
         image_paths.sort(key=natural_keys)
         im_ids = (np.linspace(0, 1, nr_images) * (len(image_paths) - 1)).astype(int)
 
@@ -319,6 +325,13 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
             nr_deleted += 1
             shutil.move(file_to_move, target_file)
 
+    if not os.path.exists(paths_to_outputs + "1Good"):
+        os.mkdir(paths_to_outputs + "1Good")
+    if not os.path.exists(paths_to_outputs + "2Okey"):
+        os.mkdir(paths_to_outputs + "2Okey")
+    if not os.path.exists(paths_to_outputs + "3Bad"):
+        os.mkdir(paths_to_outputs + "3Bad")
+
     print("{} / {} networks did not converge and were moved to {}.".format(nr_deleted, len(summary_df.index), target_folder))
 
 
@@ -332,16 +345,20 @@ if __name__ == "__main__":
 
     use_vars = [
         "x_dim", "y_dim", "z_dim", "architecture", "nr_params", "is_patchgan",
-        "loss", "optimizer", "learning_rate", "nr_train", "gen_steps", "adv_steps", "label_smoothing",
-        "feature_matching", "random_labeling", "dataset", "dropout", "batchnorm", "invert_images",
+        "loss", "optimizer", "learning_rate", "lmbda_kl", "lmbda_y", "lmbda_z", "nr_train", "gen_steps", "adv_steps",
+        "label_smoothing", "feature_matching", "random_labeling", "dataset", "dropout", "batchnorm", "invert_images",
     ]
+    rename = {
+        "is_patchgan": "patch", "learning_rate": "lr", "lmbda_kl": "l_kl", "lmbda_y": "l_y", "lmbda_z": "l_z",
+        "label_smoothing": "labsmth", "feature_matching": "featmatch", "random_labeling": "randlbl", "invert_images": "ii"
+    }
     pairwise = [["feature_matching", "loss"], ["optimizer", "learning_rate"]]
 
-    # create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log")
+    create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log", rename=rename)
     # create_image_summary(include_folders, image_folder="Evaluation/{}".format(image_summary),
     #                      nr_images=25, save_path=results_folder, ignore="4Exit", image_name=image_summary)
     # concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
     # move_to_exit(paths_to_outputs=results_folder)
-    create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
-                               pairwise=pairwise)
+    # create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
+    #                            pairwise=pairwise)
 

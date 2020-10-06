@@ -33,11 +33,14 @@ class TrainedCycleGenerator():
         with open(self._config_file, "r") as f:
             self._config = json.load(f)
 
-        self._image_shape = self._config["image_shape"]
+        self._image_shape = self._config["y_dim"]
         try:
             self._padding = self._config["padding"]
         except KeyError:
-            self._padding = self._config["padding1"]
+            try:
+                self._padding = self._config["padding1"]
+            except KeyError:
+                self._padding = {"top": 4, "bottom": 4, "left":0, "right":0}
         self._generator_out = self._config["generator_out"]
 
         self._sess = tf.Session()
