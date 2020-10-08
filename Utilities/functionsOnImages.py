@@ -232,7 +232,9 @@ def is_triggered_images(images, energy_scaler, threshold):
 def is_triggered_image(image, energy_scaler, threshold):
     """ Take 4 highest adjacent energy cells. If they are above the threshold it is triggered on this image.
     """
-    resized_image = halve_image(image)
+    def strideConv(image, mask, stride=1):
+        return signal.convolve2d(image, mask[::-1, ::-1], mode='valid')[::stride, ::stride]
+    resized_image = strideConv(image, mask=np.array([[1, 1], [1, 1]]), stride=1)
     if np.max(resized_image)*energy_scaler > threshold:
         return True
     return False
@@ -450,24 +452,29 @@ def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, fol
     return ax
 
 
-def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, ax1=None, ax2=None):
+def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, fake2=None, labels=None, ax1=None, ax2=None):
     if fake is not None:
         assert true.shape == fake.shape, "real and fake shape differ. real: {}, fake: {}.".format(true.shape, fake.shape)
         is_triggered_fake = is_triggered_images(fake, energy_scaler, threshold)
+    if fake2 is not None:
+        assert true.shape == fake2.shape, "real and fake2 shape differ. real: {}, fake2: {}.".format(true.shape, fake2.shape)
+        is_triggered_fake2 = is_triggered_images(fake2, energy_scaler, threshold)
     if ax1 is None:
         _, ax1 = plt.subplots()
     is_triggered_true = is_triggered_images(true, energy_scaler, threshold)
 
     bin_nr = 20
     bins = np.linspace(np.min(real_ET), np.max(real_ET), 20)
-    nr_real, _, _ = ax1.hist(real_ET, bins=bins, label="tracker", histtype="step", color="black")
-    nr_true, _, _ = ax1.hist(real_ET[is_triggered_true], bins=bins, label="true", histtype="step")
+    nr_real, _, _ = ax1.hist(real_ET, bins=bins, label="Tracker", histtype="step", color="black")
+    nr_true, _, _ = ax1.hist(real_ET[is_triggered_true], bins=bins, label=labels[0], histtype="step")
 
     if fake is not None:
-        nr_fake, _, _ = ax1.hist(real_ET[is_triggered_fake], bins=bins, label="fake", histtype="step")
+        nr_fake, _, _ = ax1.hist(real_ET[is_triggered_fake], bins=bins, label=labels[1], histtype="step")
         ax1.set_title("HTOS reco: {}, GAN: {}\nConcordant: {}".format(
             sum(is_triggered_true), sum(is_triggered_fake), sum(np.logical_and(is_triggered_true, is_triggered_fake)))
         )
+    if fake2 is not None:
+        nr_fake2, _, _ = ax1.hist(real_ET[is_triggered_fake2], bins=bins, label=labels[2], histtype="step")
     else:
         ax1.set_title("HTOS reco: {}".format(sum(is_triggered_true)))
     ax1.legend(loc="upper right")
@@ -476,11 +483,14 @@ def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, ax1=None
     if ax2 is None:
         _, ax2 = plt.subplots()
     trigger_rate_real = get_trigger_rate(reference=nr_true, real=nr_real)
-    ax2.plot(midpoints, trigger_rate_real, label="true")
+    ax2.plot(midpoints, trigger_rate_real, label=labels[0])
 
     if fake is not None:
         trigger_rate_fake = get_trigger_rate(reference=nr_fake, real=nr_real)
-        ax2.plot(midpoints, trigger_rate_fake, label="fake")
+        ax2.plot(midpoints, trigger_rate_fake, label=labels[1])
+    if fake2 is not None:
+        trigger_rate_fake2 = get_trigger_rate(reference=nr_fake2, real=nr_real)
+        ax2.plot(midpoints, trigger_rate_fake2, label=labels[2])
 
     ax2.legend(loc="upper left")
     return ax1, ax2

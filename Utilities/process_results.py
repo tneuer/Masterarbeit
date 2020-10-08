@@ -292,11 +292,10 @@ def create_statistical_summary(paths_to_outputs, subfolders, variables, save_pat
             print("KeyError: {}".format(e))
             continue
         aggregate_df = current_df.groupby([pair[0], pair[1], "Type"]).size().reset_index()
-        aggregate_df["Pair"] = aggregate_df[pair[0]].astype(str) + "-" + aggregate_df[pair[1]].astype(str)
+        aggregate_df[pair[0]+"-"+pair[1]] = aggregate_df[pair[0]].astype(str) + "-" + aggregate_df[pair[1]].astype(str)
         aggregate_df.drop(pair, inplace=True, axis=1)
-        aggregate_df.columns = ["Type", "Count", "Pair"]
-        wide_aggregate_df = aggregate_df.pivot(index='Type', columns="Pair", values='Count')
-        wide_aggregate_df = wide_aggregate_df.reindex(index=subfolders)
+        aggregate_df.columns = ["Type", "Count", pair[0]+"-"+pair[1]]
+        wide_aggregate_df = aggregate_df.pivot(index='Type', columns=pair[0]+"-"+pair[1], values='Count')
         ax = wide_aggregate_df.plot.bar(rot=0)
         fig = plt.gcf()
         figs.append(fig)
@@ -337,27 +336,30 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 if __name__ == "__main__":
     results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
-    results_folder = "../../Results/ServerTemp/B2Dmunu/"
+    results_folder = "../../Results/B2Dmunu/BEST/"
     image_summary = "Energy"
     include_folders = [results_folder]
     subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
-    include_folders = [results_folder+subfolder for subfolder in subfolders]
+    # include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = [
         "x_dim", "y_dim", "z_dim", "architecture", "nr_params", "is_patchgan",
-        "loss", "optimizer", "learning_rate", "lmbda_kl", "lmbda_y", "lmbda_z", "nr_train", "gen_steps", "adv_steps",
+        "loss", "optimizer", "learning_rate", "learning_rate_adv", "lmbda_kl", "lmbda_y", "lmbda_z", "nr_train", "gen_steps", "adv_steps",
         "label_smoothing", "feature_matching", "random_labeling", "dataset", "dropout", "batchnorm", "invert_images",
     ]
     rename = {
         "is_patchgan": "patch", "learning_rate": "lr", "lmbda_kl": "l_kl", "lmbda_y": "l_y", "lmbda_z": "l_z",
         "label_smoothing": "labsmth", "feature_matching": "featmatch", "random_labeling": "randlbl", "invert_images": "ii"
     }
-    pairwise = [["feature_matching", "loss"], ["optimizer", "learning_rate"]]
+    pairwise = [
+        ["feature_matching", "loss"], ["optimizer", "learning_rate"],
+        ["lmbda_kl", "lmbda_y"], ["lmbda_kl", "lmbda_z"], ["lmbda_y", "lmbda_z"]
+    ]
 
     create_index(include_folders, variables=use_vars, save_path=results_folder, sort_by="Log", rename=rename)
-    # create_image_summary(include_folders, image_folder="Evaluation/{}".format(image_summary),
-    #                      nr_images=25, save_path=results_folder, ignore="4Exit", image_name=image_summary)
-    # concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
+    create_image_summary(include_folders, image_folder="Evaluation/{}".format(image_summary),
+                         nr_images=25, save_path=results_folder, ignore="4Exit", image_name=image_summary)
+    concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
     # move_to_exit(paths_to_outputs=results_folder)
     # create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
     #                            pairwise=pairwise)

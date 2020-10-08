@@ -3,7 +3,7 @@
 ####################################################################################
     # -*- coding: utf-8 -*-
     # Author  : Thomas Neuer (tneuer)
-    # Creation Date : 2020-06-24 16:28:06
+    # Creation Date : 2020-10-08 13:42:44
     # Description :
 ####################################################################################
 """
@@ -47,7 +47,7 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN],
-        "architecture": ["keraslike2", "keraslike_residual", "VGG", "keraslike_residual_VGG"],
+        "architecture": ["keraslike_residual"],
         "batch_size": [4],
         "feature_matching": [False],
         "gen_steps": [1],
@@ -60,7 +60,7 @@ param_dict = {
         "loss": ["cross-entropy"],
         "learning_rate": [0.00005],
         "learning_rate_adv": [0.000005],
-        "optimizer": [tf.train.AdamOptimizer, tf.train.RMSPropOptimizer],
+        "optimizer": [tf.train.AdamOptimizer],
         "random_labeling": [0],
         "z_dim": [64],
 }
@@ -92,8 +92,7 @@ for i, params in enumerate(sampled_params):
 
     epochs = 3
     log_per_epoch = 40
-    padding1 = {"top": 4, "bottom": 4, "left":0, "right":0}
-    padding2 = {"top": 6, "bottom": 6, "left":0, "right":0}
+    padding = {"top": 6, "bottom": 6, "left":0, "right":0}
     is_wasserstein = True if loss == "wasserstein" else False
 
     architectures = GenerativeModel.load_from_json(architecture_path)
@@ -119,17 +118,16 @@ for i, params in enumerate(sampled_params):
     ############################################################################################################
     # Data loading
     ############################################################################################################
-    with open("{}/Trained/PiplusLowerP_CWGANGP8_out_1.pickle".format(path_loading), "rb") as f:
+    with open("{}/tracker_images.pickle".format(path_loading), "rb") as f:
         train_x = pickle.load(f)
 
     with open("{}/calo_images.pickle".format(path_loading), "rb") as f:
         train_y = pickle.load(f)
     image_shape = [64, 64, 1]
-    train_x = padding_zeros(train_x, **padding1)[:50000]
-    train_y = padding_zeros(train_y, **padding2).reshape([-1, *image_shape])[:50000]
+    train_x = padding_zeros(train_x, **padding).reshape([-1, *image_shape])[:50000]
+    train_y = padding_zeros(train_y, **padding).reshape([-1, *image_shape])[:50000]
 
     energy_scaler = np.max(train_y)
-    train_x = np.clip(train_x, a_min=0, a_max=energy_scaler)
     train_x /= energy_scaler
     train_y /= energy_scaler
 
@@ -153,40 +151,18 @@ for i, params in enumerate(sampled_params):
         test_x = 1 - test_x
         test_y = 1 - test_y
 
-    assert np.max(train_x) == 1, "train_x maximum is not 1, but {}.".format(np.max(train_x))
+    # assert np.max(train_x) == 1, "train_x maximum is not 1, butfa {}.".format(np.max(train_x))
     assert np.max(train_y) == 1, "train_y maximum is not 1, but {}.".format(np.max(train_y))
-    assert np.max(test_x) <= 1, "test_x maximum is greater 1: {}.".format(np.max(test_x))
+    # assert np.max(test_x) <= 1, "test_x maximum is greater 1: {}.".format(np.max(test_x))
     assert np.max(test_y) <= 1, "test_y maximum is greater 1: {}.".format(np.max(test_y))
-
-    print(train_x.shape, train_y.shape, test_x.shape, test_x.shape)
-    # import matplotlib.pyplot as plt
-    # fig, axs = plt.subplots(nrows=2, ncols=2)
-    # from functionsOnImages import get_energies, get_number_of_activated_cells
-    # axs[0, 0].hist([get_energies(train_x), get_energies(train_y)], label=["GAN", "MC"])
-    # axs[0, 0].legend()
-    # axs[0, 1].hist([get_energies(test_x), get_energies(test_y)], label=["GAN", "MC"])
-    # axs[0, 1].legend()
-    # axs[1, 0].hist([get_number_of_activated_cells(train_x.reshape(-1, 64, 64), threshold=6/6120),
-    #                get_number_of_activated_cells(train_y.reshape(-1, 64, 64), threshold=6/6120)], label=["GAN", "MC"])
-    # axs[1, 0].legend()
-    # axs[1, 1].hist([get_number_of_activated_cells(test_x.reshape(-1, 64, 64), threshold=6/6120),
-    #                get_number_of_activated_cells(test_y.reshape(-1, 64, 64), threshold=6/6120)], label=["GAN", "MC"])
-    # axs[1, 1].legend()
-
-    # n = 10
-    # fig, axs = plt.subplots(nrows=n, ncols=2, figsize=(20, 12))
-    # for i in range(n):
-    #     axs[i, 0].imshow(train_x[i].reshape(64, 64))
-    #     axs[i, 1].imshow(train_y[i].reshape(64, 64))
-    # plt.show()
-
+    print(train_x.shape, train_y.shape, test_x.shape, test_y.shape)
 
     ############################################################################################################
     # Preparation
     ############################################################################################################
     if not os.path.exists(path_results):
         os.mkdir(path_results)
-    path_saving = init.initialize_folder(algorithm=algorithm_name, base_folder=path_results)
+    path_saving = init.initialize_folder(algorithm=algorithm_name+"Tracker", base_folder=path_results)
 
     ############################################################################################################
     # Model Training
@@ -239,7 +215,7 @@ for i, params in enumerate(sampled_params):
     config_data["architecture"] = params["architecture"]
     config_data["optimizer"] = config_data["optimizer"].__name__
     config_data["algorithm"] = algorithm_name
-    config_data["padding1"] = padding1; config_data["padding2"] = padding2
+    config_data["padding"] = padding
     for key in ["x_train", "y_train", "x_test", "y_test", "gpu_options"]:
         config_data.pop(key)
     config_data = init.function_to_string(config_data)

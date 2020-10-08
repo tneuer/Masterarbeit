@@ -165,8 +165,8 @@ if __name__ == "__main__":
         axes[model_idx, -3].text(0.05, 0.95, textstr, transform=axes[model_idx, -3].transAxes, fontsize=14,
                                  verticalalignment='top', bbox=props)
 
-        axes[model_idx, -4].scatter(tracker_real_ET, get_energies(htos_calo_images_real), label="true", alpha=0.1)
-        axes[model_idx, -4].scatter(tracker_real_ET, get_energies(htos_calo_images_fake), label="fake", alpha=0.1)
+        axes[model_idx, -4].scatter(tracker_real_ET, get_energies(htos_calo_images_real), label="true", alpha=0.05)
+        axes[model_idx, -4].scatter(tracker_real_ET, get_energies(htos_calo_images_fake), label="fake", alpha=0.05)
         axes[model_idx, -4].legend()
 
         for func_idx, (func, params) in enumerate(use_functions.items()):

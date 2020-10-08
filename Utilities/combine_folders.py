@@ -32,7 +32,6 @@ def combine_folders(sources, target, delete_old):
     for idx, (new_name, old_path) in enumerate(path_translation.items()):
         new_path = target+"/"+new_name
         log_idx = "Copying {}/{}:   {} --->> {}".format(idx+1, len(path_translation), old_path, new_path)
-        print(log_idx)
         log = "{}\n{}".format(log, log_idx)
         if os.path.isdir(old_path):
             copy_tree(old_path, new_path)
@@ -47,9 +46,31 @@ def combine_folders(sources, target, delete_old):
         [rmtree(src) for src in sources]
         print("Deleted sources: {}.".format(sources))
 
+
+def clean_folders(target_folders, keep):
+    rm_folders = [f.path for target_folder in target_folders for f in os.scandir(target_folder) if os.path.isdir(f.path)]
+    for rm_folder in rm_folders:
+        files_in_folder = [f.path for f in os.scandir(rm_folder)]
+        for file_in_folder in files_in_folder:
+            keep_it = False
+            for potential_keep in keep:
+                if potential_keep in file_in_folder:
+                    keep_it = True
+            if not keep_it:
+                try:
+                    rmtree(file_in_folder)
+                except NotADirectoryError:
+                    os.remove(file_in_folder)
+
+
 if __name__ == "__main__":
+    # target = "../../Results/ServerTemp/B2Dmunu/"
+    # subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
+    # target_folders = [target+subfolder for subfolder in subfolders]
+    # keep = ["config", "architecture", "architecture_details", "EXIT_FLAG", "TrainStatistics"]
+    # clean_folders(target_folders=target_folders, keep=keep)
     pass
-    # source_folder = "../../Results"
-    # to_combine = [source_folder+loc for loc in ["/Server", "/ServerTemp"]]
-    # target = source_folder+"/Server2"
-    # combine_folders(sources=to_combine, target=target, delete_old=True)
+
+
+
+

@@ -146,7 +146,7 @@ class TrainedGenerator():
 
 
     def generate_multiple(self, list_of_inputs):
-        outputs = [self.generate(inputs=inputs) for inputs in list_of_inputs]
+        outputs = np.array([self.generate(inputs=inputs) for inputs in list_of_inputs])
         return outputs
 
 
