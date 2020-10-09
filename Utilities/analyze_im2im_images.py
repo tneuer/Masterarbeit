@@ -30,7 +30,7 @@ from functionsOnImages import build_histogram_HTOS, crop_images, clip_outer
 #####################################################################################################
 source_dir = "../../Results/B2Dmunu"
 model_paths = [f.path for f in os.scandir(source_dir) if os.path.isdir(f.path)]
-nr_test_hist = 100
+nr_test_hist = 1000
 batch_size = 100
 
 #####################################################################################################
@@ -121,7 +121,7 @@ for model_idx, model_path in enumerate(model_paths):
 
     use_functions[get_center_of_mass_r] = {"image_shape": image_shape}
     for idx in range(10):
-        print(idx+1, "/", 10)
+        print("Single images:", idx+1, "/", 10)
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
         figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
                                      tracker_image=tracker_images[idx],

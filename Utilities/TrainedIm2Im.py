@@ -30,7 +30,6 @@ def natural_keys(text):
 class TrainedIm2Im(TrainedGenerator):
 
     def concatenate_noise(self, inputs):
-        print(inputs.shape)
         zs = self.sample_noise(len(inputs))
         zs = np.array([np.tile(z, (*self._image_shape[:-1], 1)) for z in zs])
         valid_inpt = np.concatenate([inputs, zs], axis=3)
@@ -53,9 +52,8 @@ class TrainedIm2Im(TrainedGenerator):
         nr_batches = int(np.ceil(len(inputs) / batch_size))
         results = [0]*len(inputs)
         for batch in range(nr_batches):
-            print(batch+1,"/",nr_batches)
+            print("Batch:", batch+1,"/",nr_batches)
             current_batch = inputs[batch*batch_size:(batch+1)*batch_size]
-            print(current_batch.shape)
             generated_samples = self.generate_from_condition(inputs=current_batch)
             results[batch*batch_size:(batch+1)*batch_size] = generated_samples[:]
         results = np.stack(results) #.reshape([-1, *generated_samples.shape[1:], 1])
@@ -65,7 +63,7 @@ class TrainedIm2Im(TrainedGenerator):
     def build_simulated_events(self, condition, tracker_image, calo_image, eval_functions,
                                cgan_image=None, n=10, title=None, reference_images=None):
 
-        inputs = [condition for _ in range(n)]
+        inputs = np.array([condition for _ in range(n)])
         outputs = self.generate_batches(inputs=inputs, batch_size=100)
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 

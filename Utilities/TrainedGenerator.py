@@ -194,7 +194,7 @@ class TrainedGenerator():
     def build_simulated_events(self, condition, tracker_image, calo_image, eval_functions,
                                n=10, title=None, reference_images=None):
 
-        inputs = [condition for _ in range(n)]
+        inputs = np.array([condition for _ in range(n)])
         outputs = self.generate_from_condition(inputs=inputs)
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 

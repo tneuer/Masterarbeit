@@ -147,24 +147,6 @@ def halve_image(image):
     return resized_image
 
 
-@njit
-def halve_image_loop(image):
-    """ Outdated slower version via loop
-    """
-    resized_image = np.zeros(shape=resized_size)
-    for i in range(resized_size[0]):
-        for j in range(resized_size[1]):
-            # new_pixels_y = [i*2, i*2,
-            #                 i*2 + 1, i*2 + 1]
-            # new_pixels_x = [j*2, j*2 + 1,
-            #                 j*2, j*2 + 1]
-            # new_pixel_value = np.sum(image[new_pixels_y, new_pixels_x])
-            new_pixel_value = (image[i*2, j*2] + image[i*2, j*2 + 1] +
-                                image[i*2 + 1, j*2] + image[i*2 + 1, j*2 + 1])
-            resized_image[i, j] = new_pixel_value
-    return resized_image
-
-
 def clip_outer(images, clipval):
     clipped_images = np.copy(images)
     if (images.shape[1] == 52) and (images.shape[2] == 64):
@@ -222,7 +204,6 @@ def get_triggered_images(images, energy_scaler, cells, threshold):
 
 def is_triggered_images(images, energy_scaler, threshold):
     inner, outer = separate_images(images)
-    outer = halve_images(outer) # achieve original granularity
     is_triggered_inner = [is_triggered_image(inr, energy_scaler, threshold) for inr in inner]
     is_triggered_outer = [is_triggered_image(otr, energy_scaler, threshold) for otr in outer]
     is_triggered = [inr or otr for inr, otr in zip(is_triggered_inner, is_triggered_outer)]
