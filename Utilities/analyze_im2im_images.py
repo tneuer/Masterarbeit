@@ -28,9 +28,9 @@ from functionsOnImages import build_histogram_HTOS, crop_images, clip_outer
 #####################################################################################################
 # Model loading
 #####################################################################################################
-source_dir = "../../Results/B2Dmunu/BEST"
+source_dir = "../../Results/B2Dmunu"
 model_paths = [f.path for f in os.scandir(source_dir) if os.path.isdir(f.path)]
-nr_test_hist = 2000
+nr_test_hist = 100
 batch_size = 100
 
 #####################################################################################################
@@ -123,7 +123,7 @@ for model_idx, model_path in enumerate(model_paths):
     for idx in range(10):
         print(idx+1, "/", 10)
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
-        figs.append(Generator.build_simulated_events(condition=htos_calo_images_gan[idx].reshape([-1, 64, 64, 1]),
+        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
                                      tracker_image=tracker_images[idx],
                                      calo_image=htos_calo_images_mc[idx],
                                      cgan_image=htos_calo_images_gan[idx],

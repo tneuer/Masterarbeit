@@ -30,6 +30,7 @@ def natural_keys(text):
 class TrainedIm2Im(TrainedGenerator):
 
     def concatenate_noise(self, inputs):
+        print(inputs.shape)
         zs = self.sample_noise(len(inputs))
         zs = np.array([np.tile(z, (*self._image_shape[:-1], 1)) for z in zs])
         valid_inpt = np.concatenate([inputs, zs], axis=3)
@@ -54,16 +55,18 @@ class TrainedIm2Im(TrainedGenerator):
         for batch in range(nr_batches):
             print(batch+1,"/",nr_batches)
             current_batch = inputs[batch*batch_size:(batch+1)*batch_size]
+            print(current_batch.shape)
             generated_samples = self.generate_from_condition(inputs=current_batch)
             results[batch*batch_size:(batch+1)*batch_size] = generated_samples[:]
         results = np.stack(results) #.reshape([-1, *generated_samples.shape[1:], 1])
         return(results)
 
 
-    def build_simulated_events(self, condition, tracker_image, calo_image, cgan_image, eval_functions, n=10, title=None):
+    def build_simulated_events(self, condition, tracker_image, calo_image, eval_functions,
+                               cgan_image=None, n=10, title=None, reference_images=None):
 
         inputs = [condition for _ in range(n)]
-        outputs = self.generate_multiple_overlay_from_condition(list_of_inputs=inputs)
+        outputs = self.generate_batches(inputs=inputs, batch_size=100)
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 
         layout = get_layout(n=4+len(eval_functions)) # Tracker, Calo, GAN, Mean generated
@@ -71,9 +74,15 @@ class TrainedIm2Im(TrainedGenerator):
         fig.subplots_adjust(wspace=0.2, hspace=0.3)
         ax = ax.ravel()
 
-        E_max = np.max(np.stack((calo_image, cgan_image, mean_output), axis=0))
-        titles = ["Tracker", "Calorimeter", "CGAN", "Generated average (n={})".format(n)]
-        for i, image in enumerate([tracker_image, calo_image, cgan_image, mean_output]):
+        if cgan_image is None:
+            E_max = np.max(np.stack((calo_image, mean_output), axis=0))
+            titles = ["Tracker", "Calorimeter", "Generated average (n={})".format(n)]
+            show_images = [tracker_image, calo_image, mean_output]
+        else:
+            E_max = np.max(np.stack((calo_image, cgan_image, mean_output), axis=0))
+            titles = ["Tracker", "Calorimeter", "CGAN", "Generated average (n={})".format(n)]
+            show_images = [tracker_image, calo_image, cgan_image, mean_output]
+        for i, image in enumerate(show_images):
             if titles[i] == "Tracker":
                 ax[i].imshow(image)
             else:
@@ -87,22 +96,36 @@ class TrainedIm2Im(TrainedGenerator):
             if ("cells" in func.__name__) or ("max" in func.__name__):
                 fake_values = np.array(func(crop_images(outputs, **self._padding), **params))
                 real_value = np.array(func(crop_images(np.array([calo_image]), **self._padding), **params))
+                if reference_images is not None:
+                    ref_values = np.array(func(crop_images(reference_images, **self._padding), **params))
             else:
                 fake_values = np.array(func(outputs, **params))
                 real_value = np.array(func(np.array([calo_image]), **params))
+                if reference_images is not None:
+                    ref_values = np.array(func(reference_images, **params))
 
             if "mass_x" in func.__name__:
                 fake_values /= self._image_shape[1]
                 real_value /= self._image_shape[1]
+                if reference_images is not None:
+                    ref_values /= self._image_shape[1]
                 ax[i+4].set_xlim(-1, 1)
             elif "mass_y" in func.__name__:
                 fake_values /= self._image_shape[0]
                 real_value /= self._image_shape[0]
+                if reference_images is not None:
+                    ref_values /= self._image_shape[0]
                 ax[i+4].set_xlim(-1, 1)
+
             elif "resolution" in func.__name__:
                 ax[i+4].set_xlabel("tracker-reco")
 
-            ax[i+4].hist(fake_values, bins=20)
+            if reference_images is not None:
+                ax[i+4].hist([ref_values, fake_values], bins=20, histtype="step", stacked=False,
+                             label=["reference", "generated"], density=True)
+                ax[i+4].legend()
+            else:
+                ax[i+4].hist(fake_values, bins=20)
             ax[i+4].axvline(real_value, color='k', linestyle='dashed')
             if "get_energies" == func.__name__:
                 ax[i+4].axvline(real_value+0.1*real_value, color='gray', linestyle='dashed')
@@ -110,6 +133,9 @@ class TrainedIm2Im(TrainedGenerator):
 
             ax[i+4].set_title(func.__name__)
 
+        if reference_images is not None:
+            ax[-1].imshow(np.mean(reference_images, axis=0).reshape(calo_image.shape))
+            ax[-1].set_title("{} references".format(len(reference_images)))
         if title is not None:
             plt.text(0.05, 0.95, title, transform=fig.transFigure, size=24)
         return fig, ax

@@ -40,10 +40,8 @@ if __name__ == "__main__":
     nr_test_hist = 2000
     batch_size = 100
     result_path = "../../Results/"
-    include_all = ["/B2Dmunu"]
-    save_path = "../../Results/B2Dmunu/Summary.pdf"
-    # include_all = ["ServerTemp/B2Dmunu/1Good"]
-    # save_path = "../../Results/ServerTemp/B2Dmunu/1Good/Summary.pdf"
+    include_all = ["ServerTemp/B2DmunuTracker/1Good"]
+    save_path = "../../Results/ServerTemp/B2DmunuTracker/1Good/Summary.pdf"
     models = [
             "{}/{}".format(folder, name) for folder in include_all for name in os.listdir(result_path+"/"+folder)
                     if os.path.isdir("{}/{}".format(result_path+"/"+folder, name))
@@ -61,8 +59,6 @@ if __name__ == "__main__":
 
     with open("../../Data/B2Dmunu/TestingPurpose/calo_images.pickle", "rb") as f:
         mc_data = pickle.load(f)[-nr_test_hist:]
-    with open("../../Data/B2Dmunu/TestingPurpose/Trained/PiplusLowerP_CWGANGP8_out_1.pickle", "rb") as f:
-        gan_data = pickle.load(f)[-nr_test_hist:]
     with open("../../Data/B2Dmunu/TestingPurpose/tracker_images.pickle", "rb") as f:
         tracker_images = pickle.load(f)[-nr_test_hist:]
     with open("../../Data/B2Dmunu/TestingPurpose/tracker_events.pickle", "rb") as f:
@@ -83,9 +79,7 @@ if __name__ == "__main__":
 
         image_shape = [64, 64, 1]
         mc_data_images = padding_zeros(mc_data, top=6, bottom=6).reshape(-1, 64, 64, 1)
-        gan_data_m = np.clip(padding_zeros(gan_data, top=4, bottom=4), a_min=0, a_max=calo_scaler) / calo_scaler
-        tracker_images_m = padding_zeros(tracker_images, top=6, bottom=6)
-        tracker_images_m = np.reshape(tracker_images_m, newshape=[-1, image_shape[0], image_shape[1]])
+        tracker_images_m = padding_zeros(tracker_images, top=6, bottom=6).reshape([-1, *image_shape]) / calo_scaler
 
         #####################################################################################################
         # Model loading
@@ -106,13 +100,13 @@ if __name__ == "__main__":
                 print("Generate", i, "/", nr_batches)
                 start = i*batch_size
                 end = (i+1)*batch_size
-                batch_generated_images = Generator.predict(gan_data_m[start:end]).reshape([-1, 64, 64])
+                batch_generated_images = Generator.predict(tracker_images_m[start:end]).reshape([-1, 64, 64])
                 generated_images.extend(batch_generated_images)
 
         else:
             Generator = TrainedIm2Im(path_to_meta=meta_path, path_to_config=config_path)
             nr_batches = int(nr_test_hist/batch_size)
-            generated_images = Generator.generate_batches(inputs=gan_data_m, batch_size=batch_size)
+            generated_images = Generator.generate_batches(inputs=tracker_images_m, batch_size=batch_size)
 
         generated_images = np.array(generated_images)
         generated_images = clip_outer(images=generated_images, clipval=1/4)
@@ -134,22 +128,19 @@ if __name__ == "__main__":
 
         htos_calo_images_mc = padding_zeros(mc_data, top=6, bottom=6) / calo_scaler
         htos_calo_images_im2im = generated_images
-        htos_calo_images_gan = padding_zeros(gan_data.reshape([-1, 56, 64]), top=4, bottom=4)
-        htos_calo_images_gan = np.clip(htos_calo_images_gan, a_min=0, a_max=calo_scaler) / calo_scaler
+        htos_calo_images_tracker = tracker_images_m.reshape([-1, *image_shape[:-1]])
 
-        assert htos_calo_images_mc.shape == htos_calo_images_im2im.shape == htos_calo_images_gan.shape, "Shape mismatch."
+        assert htos_calo_images_mc.shape == htos_calo_images_im2im.shape == htos_calo_images_tracker.shape, "Shape mismatch."
 
         axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(htos_calo_images_mc, energy_scaler=calo_scaler/1000),
                                     label="Geant4", alpha=0.05)
         axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(htos_calo_images_im2im, energy_scaler=calo_scaler/1000),
                                     label="Im2Im", alpha=0.05)
-        axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(htos_calo_images_gan, energy_scaler=calo_scaler/1000),
-                                    label="CGAN", alpha=0.05)
         axes[model_idx, -1].set_xlabel("Tracker [GeV]")
         axes[model_idx, -1].set_ylabel("Reconstructed [GeV]")
         axes[model_idx, -1].legend()
 
-        build_histogram_HTOS(true=htos_calo_images_mc, fake=htos_calo_images_im2im, fake2=htos_calo_images_gan,
+        build_histogram_HTOS(true=htos_calo_images_mc, fake=htos_calo_images_im2im,
                              energy_scaler=calo_scaler, threshold=3600, real_ET=tracker_real_ET,
                             labels=["Geant4", "Im2Im", "CGAN"], ax1=axes[model_idx, -3], ax2=axes[model_idx, -2])
 
@@ -171,7 +162,7 @@ if __name__ == "__main__":
 
 
         for func_idx, (func, params) in enumerate(use_functions.items()):
-            build_histogram(true=htos_calo_images_mc, fake=htos_calo_images_im2im, fake2=htos_calo_images_gan,
+            build_histogram(true=htos_calo_images_mc, fake=htos_calo_images_im2im,
                             function=func, name=colnames[func_idx], epoch="", folder=None, ax=axes[model_idx, func_idx],
                             labels=["Geant4", "Im2Im", "CGAN"], **params)
             if func_idx == 0:
@@ -182,10 +173,10 @@ if __name__ == "__main__":
         idx = 9
         use_functions[get_center_of_mass_r] = {"image_shape": image_shape}
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
-        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
-                                 tracker_image=tracker_images[idx],
+        figs.append(Generator.build_simulated_events(condition=htos_calo_images_tracker[idx].reshape([-1, 64, 64, 1]),
+                                 tracker_image=htos_calo_images_tracker[idx],
                                  calo_image=htos_calo_images_mc[idx],
-                                 cgan_image=htos_calo_images_gan[idx],
+                                 cgan_image=None,
                                  n=500,
                                  eval_functions=use_functions,
                                  title=model

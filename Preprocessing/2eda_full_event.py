@@ -45,7 +45,7 @@ figs = []
 flattened_energies = [item for sublist in tracker_events["real_ET"].ravel() for item in sublist]
 
 # et_cutoff = np.mean(flattened_energies) + 4*np.std(flattened_energies)
-et_cutoff = 7282.0142822265625
+et_cutoff = 20000
 def contains_outlier(row):
     return np.any(row > et_cutoff)
 
@@ -95,13 +95,12 @@ calo_scaler = 1
 image_shape = calo_images[0].shape
 tracker_real_ET = tracker_events["real_ET"].apply(sum)
 use_functions = {
-                get_center_of_mass_x: {"image_shape": image_shape}, get_center_of_mass_y: {"image_shape": image_shape},
-                get_number_of_activated_cells: {"threshold": 5/calo_scaler},
-                get_energies: {"energy_scaler": calo_scaler}, get_max_energy: {"energy_scaler": calo_scaler},
-                get_std_energy: {"energy_scaler": calo_scaler},
-                get_energy_resolution: {"real_ET": tracker_real_ET, "energy_scaler": calo_scaler}
-                }
-
+  get_center_of_mass_x: {"image_shape": image_shape}, get_center_of_mass_y: {"image_shape": image_shape},
+  get_number_of_activated_cells: {"threshold": 5/calo_scaler},
+  get_energies: {"energy_scaler": calo_scaler}, get_max_energy: {"energy_scaler": calo_scaler},
+  get_std_energy: {"energy_scaler": calo_scaler},
+  get_energy_resolution: {"real_ET": tracker_real_ET, "energy_scaler": calo_scaler}
+}
 
 build_histogram_HTOS(true=calo_images, fake=None, energy_scaler=calo_scaler,
                      threshold=3600, real_ET=tracker_real_ET, ax1=axes[7], ax2=axes[8])

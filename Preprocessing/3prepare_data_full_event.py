@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 ############ Preprocess and load
 #############################################################################################################
 ref = "PiplusLowerP"
-data_load_path = "../../Data/B2Dmunu/TestingPurpose"
+data_load_path = "../../Data/B2Dmunu/LargeSample"
 figure_save_path = data_load_path
 data = init.load_data(data_load_path, mode="all")
 

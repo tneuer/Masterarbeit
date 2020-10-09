@@ -86,7 +86,10 @@ def extract_tracker_info_from_root(path_to_file, tree_name, save_path=None):
                         "Mu_x_projection": "mu_L0Calo_HCAL_xProjection",
                         "Mu_y_projection": "mu_L0Calo_HCAL_yProjection",
                         "Mu_real_ET": "mu_L0Calo_HCAL_realET",
-                        "n_Particles": "K_n_Particles"
+                        "n_Particles": "K_n_Particles",
+                        "is_Dec": "B0_L0HadronDecision_Dec",
+                        "is_TIS": "B0_L0HadronDecision_TIS",
+                        "is_TOS": "B0_L0HadronDecision_TOS"
                         }
 
     events = {name: rn.root2array(filenames=file_path, treename=tree_name, branches=branch, start=start, stop=stop)
@@ -116,8 +119,12 @@ def convert_tracker_event_to_image(events, tracker_dim, save_path=None, show_id=
     the pixelated image.
     X_grid has to lie between 0,..., n-1, because n would be out of bounds
     """
-    X_grid_coord = events["x_projections"].apply(scale_to_grid_coordinate, args=[0, tracker_dim[1]-1])
-    Y_grid_coord = events["y_projections"].apply(scale_to_grid_coordinate, args=[0, tracker_dim[0]-1])
+    globalmin_x = np.min(events["x_projections"].apply(np.min))
+    globalmax_x = np.max(events["x_projections"].apply(np.max))
+    globalmin_y = np.min(events["y_projections"].apply(np.min))
+    globalmax_y = np.max(events["y_projections"].apply(np.max))
+    X_grid_coord = events["x_projections"].apply(scale_to_grid_coordinate, args=[0, tracker_dim[1]-1, globalmin_x, globalmax_x])
+    Y_grid_coord = events["y_projections"].apply(scale_to_grid_coordinate, args=[0, tracker_dim[0]-1, globalmin_y, globalmax_y])
 
     nr_events = len(X_grid_coord)
     pics_idxs = np.arange(nr_events).tolist()
@@ -141,13 +148,17 @@ def convert_tracker_event_to_image(events, tracker_dim, save_path=None, show_id=
     return pics
 
 
-def scale_to_grid_coordinate(values, minval, maxval):
+def scale_to_grid_coordinate(values, minval, maxval, globalmin=None, globalmax=None):
     """ Covert continuous measurements to index grid with indices from minval to maxval in both dimensions.
     So for a two dimensional image with x and y measurements between 0-1000 and example measurement of
     (250, 730) which should be scaled to a 10x10 pixel image, the output is (2, 7). So if a particle is at
     position (250, 730) the pixel (2, 7) is lit in a 10x10 image.
     """
-    scaled_values = (values - values.min()) / (values.max() - values.min()) # Scale to [0, 1]
+    if globalmin is None:
+        globalmin = values.min()
+    if globalmax is None:
+        globalmax = values.max()
+    scaled_values = (values - globalmin) / (globalmax - globalmin) # Scale to [0, 1]
     index_values = scaled_values * (maxval - minval) + minval # Scale to [minval, maxval]
     index_values = index_values.astype(dtype=int) # Convert to index
     return index_values
@@ -324,9 +335,6 @@ def log_cleaning_process(noise_inner, noise_outer, nr_empty, nr_clean, nr_events
     plt.savefig(save_path+"/NoiseDistribution.png")
 
 
-
-
-
 if __name__ == "__main__":
     if (read_tracker):
         tracker_events = extract_tracker_info_from_root(path_to_file=file_path, tree_name=tree_name,
@@ -348,7 +356,7 @@ if __name__ == "__main__":
     if (convert_to_image):
         pics_tracker_piplus = convert_tracker_event_to_image(events=tracker_events, tracker_dim=tracker_dim,
                                                              save_path="{}/tracker_images.pickle".format(data_save_path))
-        calo_pics_piplus = convert_calo_event_to_image(calo_events,
-                                                          save_path="{}/calo_images.pickle".format(data_save_path))
+        # calo_pics_piplus = convert_calo_event_to_image(calo_events,
+        #                                                   save_path="{}/calo_images.pickle".format(data_save_path))
 
         print("\nImages created.\n")

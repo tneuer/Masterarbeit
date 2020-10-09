@@ -18,7 +18,7 @@ def combine_folders(sources, target, delete_old):
         raise FileExistsError("{} already exists.".format(target))
     os.mkdir(target)
 
-    folders = [src+"/"+f for src in sources for f in os.listdir(src)]
+    folders = [f.path for src in sources for f in os.scandir(src) if os.path.isdir(f.path)]
     path_translation = {}
     for folder_idx, folder in enumerate(folders):
         subfolder = folder.split("/")[-1]
@@ -32,6 +32,7 @@ def combine_folders(sources, target, delete_old):
     for idx, (new_name, old_path) in enumerate(path_translation.items()):
         new_path = target+"/"+new_name
         log_idx = "Copying {}/{}:   {} --->> {}".format(idx+1, len(path_translation), old_path, new_path)
+        print(log_idx)
         log = "{}\n{}".format(log, log_idx)
         if os.path.isdir(old_path):
             copy_tree(old_path, new_path)
@@ -64,12 +65,17 @@ def clean_folders(target_folders, keep):
 
 
 if __name__ == "__main__":
-    # target = "../../Results/ServerTemp/B2Dmunu/"
-    # subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
-    # target_folders = [target+subfolder for subfolder in subfolders]
-    # keep = ["config", "architecture", "architecture_details", "EXIT_FLAG", "TrainStatistics"]
-    # clean_folders(target_folders=target_folders, keep=keep)
-    pass
+    # for subfolder in ["1Good", "2Okey", "3Bad", "4Exit"]:
+    #     source = "../../Results/ServerTemp/B2Dmunu/{}".format(subfolder)
+    #     keep = ["config", "architecture", "architecture_details", "EXIT_FLAG", "TrainStatistics"]
+    #     clean_folders(target_folders=[source], keep=keep)
+
+    # for subfolder in ["1Good", "2Okey", "3Bad", "4Exit"]:
+    #     source = "../../Results/ServerTemp/B2Dmunu/{}".format(subfolder)
+    #     sources = [source, "../../Results/ServerTemp/B2DmunuHistory/{}".format(subfolder)]
+    #     target = "../../Results/ServerTemp/B2DmunuHistory2/{}".format(subfolder)
+    #     combine_folders(sources=sources, target=target, delete_old=False)
+
 
 
 

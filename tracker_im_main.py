@@ -10,7 +10,7 @@
 import os
 import copy
 if "lhcb_data" in os.getcwd():
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_VISIBLE_DEVICES"]="1"
 import sys
 sys.path.insert(1, "Preprocessing")
 sys.path.insert(1, "TFModels")
@@ -47,8 +47,8 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN],
-        "architecture": ["keraslike_residual"],
-        "batch_size": [4],
+        "architecture": ["keraslike_residual_VGG", "keraslike_residual", "keraslike_VGG"],
+        "batch_size": [4, 8, 16],
         "feature_matching": [False],
         "gen_steps": [1],
         "is_patchgan": [True],
@@ -57,7 +57,7 @@ param_dict = {
         "lmbda_kl": [0.1, 1],
         "lmbda_y": [0, 0.1, 0.5],
         "lmbda_z": [1],
-        "loss": ["cross-entropy"],
+        "loss": ["cross-entropy", "KL"],
         "learning_rate": [0.00005],
         "learning_rate_adv": [0.000005],
         "optimizer": [tf.train.AdamOptimizer],

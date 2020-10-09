@@ -115,8 +115,6 @@ class TrainedGenerator():
         return valid_inpt
 
 
-
-
     def generate(self, inputs):
         n = len(inputs)
         is_training = self._graph.get_tensor_by_name("Inputs/is_training:0")
@@ -145,18 +143,8 @@ class TrainedGenerator():
         return added_image
 
 
-    def generate_multiple(self, list_of_inputs):
-        outputs = np.array([self.generate(inputs=inputs) for inputs in list_of_inputs])
-        return outputs
-
-
-    def generate_multiple_from_condition(self, list_of_inputs):
-        list_of_inputs = [self.concatenate_noise(inputs=inpt) for inpt in list_of_inputs]
-        outputs = self.generate_multiple(list_of_inputs=list_of_inputs)
-        return outputs
-
-    def generate_multiple_overlay_from_condition(self, list_of_inputs):
-        outputs = self.generate_multiple_from_condition(list_of_inputs=list_of_inputs)
+    def generate_multiple_overlay_from_condition(self, lists_of_inputs):
+        outputs = [self.generate_from_condition(inputs=list_of_inputs) for list_of_inputs in lists_of_inputs]
         outputs = np.stack([np.sum(output, axis=0) for output in outputs], axis=0)
         return outputs
 
@@ -204,10 +192,10 @@ class TrainedGenerator():
 
 
     def build_simulated_events(self, condition, tracker_image, calo_image, eval_functions,
-                               gen_scaler=1, n=10, title=None, reference_images=None):
+                               n=10, title=None, reference_images=None):
 
         inputs = [condition for _ in range(n)]
-        outputs = self.generate_multiple_overlay_from_condition(list_of_inputs=inputs)*gen_scaler
+        outputs = self.generate_from_condition(inputs=inputs)
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 
         layout = get_layout(n=4+len(eval_functions)) # Tracker, Calo, Mean generated, Reference

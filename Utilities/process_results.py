@@ -68,9 +68,6 @@ def create_index(paths_to_outputs, variables, save_path, sort_by="Log", generell
                 origin = folder.rsplit("/")[-2]
                 f_path = origin+"/"+f_path
 
-                graph_index = [f for f in os.listdir("{}/TFGraphs".format(folder)) if "index" in f]
-                # epoch = max([int(re.findall(r'\d+', idx)[0]) for idx in graph_index])
-
                 try:
                     act = config_dict["activation"].split(".")[-1]
                 except KeyError:
@@ -335,12 +332,13 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 
 if __name__ == "__main__":
-    results_folder = "../../Results/ServerTemp/PiplusLowerPSummary/PiplusLowerP4/"
-    results_folder = "../../Results/B2Dmunu/BEST/"
+    # results_folder = "../../Results/B2Dmunu/"
+    results_folder = "../../Results/ServerTemp/B2Dmunu/"
+
     image_summary = "Energy"
     include_folders = [results_folder]
     subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
-    # include_folders = [results_folder+subfolder for subfolder in subfolders]
+    include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = [
         "x_dim", "y_dim", "z_dim", "architecture", "nr_params", "is_patchgan",
@@ -348,7 +346,7 @@ if __name__ == "__main__":
         "label_smoothing", "feature_matching", "random_labeling", "dataset", "dropout", "batchnorm", "invert_images",
     ]
     rename = {
-        "is_patchgan": "patch", "learning_rate": "lr", "lmbda_kl": "l_kl", "lmbda_y": "l_y", "lmbda_z": "l_z",
+        "is_patchgan": "patch", "learning_rate": "lr", "learning_rate_adv": "lr_adv", "lmbda_kl": "l_kl", "lmbda_y": "l_y", "lmbda_z": "l_z",
         "label_smoothing": "labsmth", "feature_matching": "featmatch", "random_labeling": "randlbl", "invert_images": "ii"
     }
     pairwise = [
@@ -361,6 +359,6 @@ if __name__ == "__main__":
                          nr_images=25, save_path=results_folder, ignore="4Exit", image_name=image_summary)
     concatenate_images(include_folders, image_name="TrainStatistics", save_path=results_folder)
     # move_to_exit(paths_to_outputs=results_folder)
-    # create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
-    #                            pairwise=pairwise)
+    create_statistical_summary(results_folder, subfolders, variables=use_vars+["algorithm", "batch_size"], save_path=results_folder,
+                               pairwise=pairwise)
 

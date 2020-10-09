@@ -390,6 +390,8 @@ def build_tracker_calo_images(data, n, calo_components=False, seed=42, save_path
 def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, folder=None, ax=None, use_legend=False, labels=None,
                      **kwargs):
     eval_true = function(true, **kwargs)
+    if labels is None:
+        labels = ["true", "fake", "fake2"]
     if fake is not None:
         eval_fake = function(fake, **kwargs)
 
@@ -397,19 +399,12 @@ def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, fol
             eval_fake2 = function(fake2, **kwargs)
             minval = np.min([np.min(eval_true), np.min(eval_fake), np.min(eval_fake2)])
             maxval = np.max([np.max(eval_true), np.max(eval_fake), np.max(eval_fake2)])
-            if labels is None:
-                labels = ["true", "fake", "fake2"]
         else:
             minval = np.min([np.min(eval_true), np.min(eval_fake)])
             maxval = np.max([np.max(eval_true), np.max(eval_fake)])
-            if labels is None:
-                labels = ["true", "fake"]
-
     else:
         minval = np.min(eval_true)
         maxval = np.max(eval_true)
-        if labels is None:
-            labels = ["true"]
 
     if name.lower() == "resolution":
         minval = -2.5
@@ -461,6 +456,8 @@ def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, fake2=No
         is_triggered_fake2 = is_triggered_images(fake2, energy_scaler, threshold)
     if ax1 is None:
         _, ax1 = plt.subplots()
+    if labels is None:
+        labels = ["true", "fake", "fake2"]
     is_triggered_true = is_triggered_images(true, energy_scaler, threshold)
 
     bin_nr = 20
