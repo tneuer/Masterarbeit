@@ -28,7 +28,7 @@ from functionsOnImages import build_histogram_HTOS, crop_images, clip_outer
 #####################################################################################################
 # Model loading
 #####################################################################################################
-source_dir = "../../Results/B2Dmunu"
+source_dir = "../../Results/ServerTemp/B2DmunuTracker/1Good"
 model_paths = [f.path for f in os.scandir(source_dir) if os.path.isdir(f.path)]
 nr_test_hist = 1000
 batch_size = 100
@@ -57,6 +57,7 @@ mc_data_images_m = padding_zeros(mc_data[-nr_test_hist:], top=6, bottom=6).resha
 gan_data_m = np.clip(padding_zeros(gan_data[-nr_test_hist:], top=4, bottom=4), a_min=0, a_max=calo_scaler) / calo_scaler
 tracker_images_m = padding_zeros(tracker_images[-nr_test_hist:], top=6, bottom=6).reshape([-1, *image_shape]) / calo_scaler
 
+
 #####################################################################################################
 # Model loading
 #####################################################################################################
@@ -70,7 +71,7 @@ for model_idx, model_path in enumerate(model_paths):
     meta_path = model_path + "/TFGraphs/"
     config_path = model_path + "/config.json"
     Generator = TrainedIm2Im(path_to_meta=meta_path, path_to_config=config_path)
-    generated_images = Generator.generate_batches(inputs=gan_data_m, batch_size=batch_size)
+    generated_images = Generator.generate_batches(inputs=tracker_images_m, batch_size=batch_size)
 
     #####################################################################################################
     # Evaluation
@@ -93,24 +94,20 @@ for model_idx, model_path in enumerate(model_paths):
         r"std($E_{Ti}$) [GeV]", r"$E_{T,Tracker} - \sum_{i} E_{Ti}$ [MeV]"
     ]
 
-    print(mc_data_images_m.shape, gan_data_m.shape, generated_images.shape)
-    print(np.max(mc_data_images_m), np.max(gan_data_m), np.max(generated_images))
-    raise
     for func_idx, (func, params) in enumerate(use_functions.items()):
         if func.__name__ in ["get_number_of_activated_cells", "get_max_energy"]:
-            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m, function=func,
-                            name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im", "CGAN"], **params)
+            build_histogram(true=mc_data_images_m, fake=generated_images, function=func,
+                            name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im"], **params)
         else:
-            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m, function=func,
-                            name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im", "CGAN"], **params)
+            build_histogram(true=mc_data_images_m, fake=generated_images, function=func,
+                            name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im"], **params)
 
-    build_histogram_HTOS(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m,
-                         energy_scaler=calo_scaler, threshold=3600, real_ET=tracker_real_ET, labels=["Geant4", "Im2Im", "CGAN"],
+    build_histogram_HTOS(true=mc_data_images_m, fake=generated_images,
+                         energy_scaler=calo_scaler, threshold=3600, real_ET=tracker_real_ET, labels=["Geant4", "Im2Im"],
                          ax1=axes[-3], ax2=axes[-2])
 
     axes[-1].scatter(tracker_real_ET, get_energies(mc_data_images_m), label="Geant4", alpha=0.05)
     axes[-1].scatter(tracker_real_ET, get_energies(generated_images), label="Im2Im", alpha=0.05)
-    axes[-1].scatter(tracker_real_ET, get_energies(gan_data_m), label="CGAN", alpha=0.05)
     axes[-1].legend()
 
     figs.append(fig2)
@@ -119,10 +116,10 @@ for model_idx, model_path in enumerate(model_paths):
     for idx in range(10):
         print("Single images:", idx+1, "/", 10)
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
-        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
+        figs.append(Generator.build_simulated_events(condition=tracker_images_m[idx],
                                      tracker_image=tracker_images_m[idx].reshape([image_shape[0], image_shape[1]]),
                                      calo_image=mc_data_images_m[idx],
-                                     cgan_image=gan_data_m[idx],
+                                     cgan_image=None,
                                      n=500,
                                      eval_functions=use_functions,
                                      title=model_path

@@ -58,9 +58,9 @@ if __name__ == "__main__":
     figs = [fig]
 
     with open("../../Data/B2Dmunu/TestingPurpose/calo_images.pickle", "rb") as f:
-        mc_data = pickle.load(f)[-nr_test_hist:]
+        mc_data = pickle.load(f)
     with open("../../Data/B2Dmunu/TestingPurpose/tracker_images.pickle", "rb") as f:
-        tracker_images = pickle.load(f)[-nr_test_hist:]
+        tracker_images = pickle.load(f)
     with open("../../Data/B2Dmunu/TestingPurpose/tracker_events.pickle", "rb") as f:
         tracker_events = pickle.load(f)
         tracker_real_ET = tracker_events["real_ET"].apply(sum).to_numpy()[-nr_test_hist:]
@@ -78,8 +78,8 @@ if __name__ == "__main__":
 
 
         image_shape = [64, 64, 1]
-        mc_data_images = padding_zeros(mc_data, top=6, bottom=6).reshape(-1, 64, 64, 1)
-        tracker_images_m = padding_zeros(tracker_images, top=6, bottom=6).reshape([-1, *image_shape]) / calo_scaler
+        mc_data_images_m = padding_zeros(mc_data[-nr_test_hist:], top=6, bottom=6).reshape(-1, 64, 64) / calo_scaler
+        tracker_images_m = padding_zeros(tracker_images[-nr_test_hist:], top=6, bottom=6).reshape([-1, *image_shape]) / calo_scaler
 
         #####################################################################################################
         # Model loading
@@ -125,27 +125,22 @@ if __name__ == "__main__":
                         get_std_energy: {"energy_scaler": calo_scaler/1000, "threshold": 5/calo_scaler},
                         get_energy_resolution: {"real_ET": tracker_real_ET, "energy_scaler": calo_scaler}}
 
+        assert mc_data_images.shape == generated_images.shape == tracker_images_m.shape, "Shape mismatch."
 
-        htos_calo_images_mc = padding_zeros(mc_data, top=6, bottom=6) / calo_scaler
-        htos_calo_images_im2im = generated_images
-        htos_calo_images_tracker = tracker_images_m.reshape([-1, *image_shape[:-1]])
-
-        assert htos_calo_images_mc.shape == htos_calo_images_im2im.shape == htos_calo_images_tracker.shape, "Shape mismatch."
-
-        axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(htos_calo_images_mc, energy_scaler=calo_scaler/1000),
+        axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(mc_data_images, energy_scaler=calo_scaler/1000),
                                     label="Geant4", alpha=0.05)
-        axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(htos_calo_images_im2im, energy_scaler=calo_scaler/1000),
+        axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(generated_images, energy_scaler=calo_scaler/1000),
                                     label="Im2Im", alpha=0.05)
         axes[model_idx, -1].set_xlabel("Tracker [GeV]")
         axes[model_idx, -1].set_ylabel("Reconstructed [GeV]")
         axes[model_idx, -1].legend()
 
-        build_histogram_HTOS(true=htos_calo_images_mc, fake=htos_calo_images_im2im,
+        build_histogram_HTOS(true=mc_data_images, fake=generated_images,
                              energy_scaler=calo_scaler, threshold=3600, real_ET=tracker_real_ET,
                             labels=["Geant4", "Im2Im", "CGAN"], ax1=axes[model_idx, -3], ax2=axes[model_idx, -2])
 
         # Resolution Geant vs Generated
-        resolution_geant_nn = (get_energies(htos_calo_images_mc) - get_energies(htos_calo_images_im2im))
+        resolution_geant_nn = (get_energies(mc_data_images) - get_energies(generated_images))
         is_small_discrepancy = np.abs(resolution_geant_nn)<5
         resolution_geant_nn_moderate = resolution_geant_nn[is_small_discrepancy]
         axes[model_idx, -4].hist(resolution_geant_nn_moderate, bins=40, histtype="step")
@@ -162,7 +157,7 @@ if __name__ == "__main__":
 
 
         for func_idx, (func, params) in enumerate(use_functions.items()):
-            build_histogram(true=htos_calo_images_mc, fake=htos_calo_images_im2im,
+            build_histogram(true=mc_data_images, fake=generated_images,
                             function=func, name=colnames[func_idx], epoch="", folder=None, ax=axes[model_idx, func_idx],
                             labels=["Geant4", "Im2Im", "CGAN"], **params)
             if func_idx == 0:
@@ -173,9 +168,9 @@ if __name__ == "__main__":
         idx = 9
         use_functions[get_center_of_mass_r] = {"image_shape": image_shape}
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
-        figs.append(Generator.build_simulated_events(condition=htos_calo_images_tracker[idx].reshape([-1, 64, 64, 1]),
-                                 tracker_image=htos_calo_images_tracker[idx],
-                                 calo_image=htos_calo_images_mc[idx],
+        figs.append(Generator.build_simulated_events(condition=tracker_images_m[idx],
+                                 tracker_image=tracker_images_m[idx].reshape([image_shape[0], image_shape[1]]),
+                                 calo_image=mc_data_images[idx],
                                  cgan_image=None,
                                  n=500,
                                  eval_functions=use_functions,
