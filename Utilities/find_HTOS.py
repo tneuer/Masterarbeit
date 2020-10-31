@@ -14,11 +14,13 @@ import pickle
 
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 from TrainedIm2Im import TrainedIm2Im
 from functionsOnImages import padding_zeros, separate_images, double_image
+mpl.rcParams["image.cmap"] = "YlOrBr"
 
 
 def scale_to_grid_coordinate(values, minval, maxval, globalmin=None, globalmax=None):
@@ -138,7 +140,8 @@ def plot_tracker_image_with_signal_frame(images, events, fr_width, idx, padding=
         for i, rect in enumerate(signal_rects):
             frame = patches.Rectangle(rect.get_corner(), fr_width, fr_width, linewidth=1, edgecolor='g', facecolor='none')
             ax.add_patch(frame)
-            image_title += "{}: {}\n".format(particles[i], events.loc[idx, "{}_real_ET".format(particles[i])])
+            particle_energy = events.loc[idx, "{}_real_ET".format(particles[i])]
+            image_title += "\n{}: {} MeV".format(particles[i], int(particle_energy))
         ax.set_title(image_title)
 
         if add_colorbar:
@@ -195,7 +198,7 @@ def plot_calo_image_with_triggered_frame(images, idx, threshold, show=True, ax=N
             title += "\nOuter triggered"
         elif title == "":
             title = "Not triggered"
-        title += "\nMax sum: {}.".format(max_cells_sum)
+        title += "\nMax sum: {} MeV.".format(int(max_cells_sum))
         im = ax.imshow(image)
         for i, square in enumerate(inner_triggered):
             frame = patches.Rectangle(square.get_corner(), 2, 2, linewidth=1, edgecolor='r', facecolor='none')
@@ -264,10 +267,11 @@ def plot_calo_image_with_triggered_and_signal_frame(
             axs[2].add_patch(frame)
 
         axs[2].set_title(
-            "TOS: {} - TIS: {}\nTruth TOS: {} - TIS: {}".format(
+            "HTOS: {} - HTIS: {}\nTruth HTOS: {} - HTIS: {}".format(
                 is_TOS, is_TIS, tracker_events.iloc[idx]["is_TOS"], tracker_events.iloc[idx]["is_TIS"]
             )
         )
+        plt.tight_layout()
         if show:
             plt.show()
         return signal_squares, inner_squares, outer_squares, fig, axs
@@ -332,14 +336,24 @@ if __name__ == "__main__":
 
     # plot_tracker_image_with_signal_frame(images=tracker_images_m, events=tracker_events_m, fr_width=7, idx=4, padding=padding, show=True)
     # plot_calo_image_with_triggered_frame(images=mc_data_images, idx=16, threshold=3600, show=True)
-    for idx in range(0, 1000):
-        if tracker_events_m.iloc[idx]["is_TOS"]:
-            print(idx)
-            plot_calo_image_with_triggered_and_signal_frame(
-                tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
-                calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
-            )
-        plt.show()
+    # for idx in range(0, 1000):
+    #     if tracker_events_m.iloc[idx]["is_TIS"]:
+    #         print(idx)
+    #         plot_calo_image_with_triggered_and_signal_frame(
+    #             tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
+    #             calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
+    #         )
+    #     plt.show()
+
+    for idx_key in {"TIS": 21, "TOS": 31, "TISTOS": 152}:
+        idx = {"TIS": 21, "TOS": 31, "TISTOS": 152}[idx_key]
+        print(idx)
+        plot_calo_image_with_triggered_and_signal_frame(
+            tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
+            calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
+        )
+        plt.savefig("../../Thesis/figures/Data/ex_{}.png".format(idx_key))
+
     raise
 
 

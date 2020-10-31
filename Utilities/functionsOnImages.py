@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from numba import njit
+# from numba import njit
 from scipy import signal
 
 def savefigs(figures, save_path):
@@ -293,10 +293,10 @@ def build_image(image, colorbar=False):
     return fig, ax
 
 
-def build_mean_images(data, column_titles=None, save_path=None):
+def build_mean_images(data, column_titles=None, save_path=None, colorbar=False):
     images_to_plot = [[get_mean_image(images) for images in data]]
 
-    fig, ax = build_images(images_to_plot, column_titles, fs_x=20, fs_y=10)
+    fig, ax = build_images(images_to_plot, column_titles, fs_x=20, fs_y=10, colorbar=colorbar)
     if save_path is not None:
         fig.savefig(save_path)
     return fig, ax

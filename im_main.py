@@ -47,8 +47,8 @@ from generativeModels import GenerativeModel
 param_dict = {
         "adv_steps": [1],
         "algorithm": [BiCycleGAN],
-        "architecture": ["keraslike_residual_VGG"],
-        "batch_size": [4],
+        "architecture": ["keraslike_residual_VGG", "keraslike_residual", "VGG"],
+        "batch_size": [4, 8, 16],
         "feature_matching": [False],
         "gen_steps": [1],
         "is_patchgan": [True],

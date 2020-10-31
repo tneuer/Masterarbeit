@@ -332,13 +332,13 @@ def move_to_exit(paths_to_outputs, target_folder="4Exit"):
 
 
 if __name__ == "__main__":
-    # results_folder = "../../Results/B2Dmunu/"
-    results_folder = "../../Results/ServerTemp/B2Dmunu/"
+    results_folder = "../../Results/B2Dmunu/"
+    # results_folder = "../../Results/ServerTemp/B2Dmunu/"
 
     image_summary = "Energy"
     include_folders = [results_folder]
     subfolders = ["1Good/", "2Okey/", "3Bad/", "4Exit/"]
-    include_folders = [results_folder+subfolder for subfolder in subfolders]
+    # include_folders = [results_folder+subfolder for subfolder in subfolders]
 
     use_vars = [
         "x_dim", "y_dim", "z_dim", "architecture", "nr_params", "is_patchgan",

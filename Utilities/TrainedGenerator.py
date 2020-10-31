@@ -37,7 +37,7 @@ class TrainedGenerator():
         self._sampler_params = eval(self._config["sampler"].split(' ', 1)[1])
         self._z_dim = self._config["z_dim"]
 
-        self._image_shape = self._config["y_dim"]
+        self._image_shape = self._config["x_dim"]
         try:
             self._padding = self._config["padding"]
         except KeyError:
@@ -149,8 +149,8 @@ class TrainedGenerator():
         return outputs
 
     def generate_batches(self, list_of_inputs, batch_size):
-        assert isinstance(list_of_inputs, list), "list of inputs must be of type list."
-        assert isinstance(list_of_inputs[0][0], list), ("List of inputs must have following structure: " +
+        assert isinstance(list_of_inputs, (list, np.ndarray)), "list of inputs must be of type list."
+        assert isinstance(list_of_inputs[0][0], (list, np.ndarray)), ("List of inputs must have following structure: " +
             "List[ Event[ Track[ x, y, et ] ] ]. But at position list_of_inputs[0][0] is {}.".format(list_of_inputs[0][0])
         )
 
@@ -159,7 +159,7 @@ class TrainedGenerator():
         for batch in range(nr_batches):
             print(batch+1,"/",nr_batches)
             current_batch = list_of_inputs[batch*batch_size:(batch+1)*batch_size]
-            generated_samples = self.generate_multiple_overlay_from_condition(list_of_inputs=current_batch)
+            generated_samples = self.generate_multiple_overlay_from_condition(lists_of_inputs=current_batch)
             results[batch*batch_size:(batch+1)*batch_size] = generated_samples[:]
         results = np.stack(results) #.reshape([-1, *generated_samples.shape[1:], 1])
         return(results)

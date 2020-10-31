@@ -40,7 +40,7 @@ if __name__ == "__main__":
     nr_test_hist = 2000
     batch_size = 100
     result_path = "../../Results/"
-    include_all = ["/B2Dmunu"]
+    include_all = ["B2Dmunu"]
     save_path = "../../Results/B2Dmunu/Summary.pdf"
     # include_all = ["ServerTemp/B2Dmunu/1Good"]
     # save_path = "../../Results/ServerTemp/B2Dmunu/1Good/Summary.pdf"
@@ -131,6 +131,7 @@ if __name__ == "__main__":
                         get_std_energy: {"energy_scaler": calo_scaler/1000, "threshold": 5/calo_scaler},
                         get_energy_resolution: {"real_ET": tracker_real_ET, "energy_scaler": calo_scaler}}
 
+        gan_data_m = gan_data_m.reshape([-1, *image_shape[:-1]])
         assert mc_data_images_m.shape == generated_images.shape == gan_data_m.shape, "Shape mismatch."
 
         axes[model_idx, -1].scatter(tracker_real_ET / 1000, get_energies(mc_data_images_m, energy_scaler=calo_scaler/1000),
@@ -169,14 +170,14 @@ if __name__ == "__main__":
                             function=func, name=colnames[func_idx], epoch="", folder=None, ax=axes[model_idx, func_idx],
                             labels=["Geant4", "Im2Im", "CGAN"], **params)
             if func_idx == 0:
-                fs = {"2": 12, "3": 15, "7": 10, "8": 10, "9": 12, "11": 13, "12": 12, "13": 12, "14": 13, "17": 13, "18": 13}
+                fs = {"2": 12, "3": 15, "7": 10, "8": 10, "9": 12, "10": 13, "11": 13, "12": 12, "13": 12, "14": 13, "17": 13, "18": 13, "23": 12}
                 axes[model_idx, func_idx].set_ylabel(model, fontsize=fs[str(len(models))])
             if model_idx != 0:
                 axes[model_idx, func_idx].set_title("")
         idx = 9
         use_functions[get_center_of_mass_r] = {"image_shape": image_shape}
         use_functions[get_energy_resolution] = {"real_ET": tracker_real_ET[idx], "energy_scaler": calo_scaler}
-        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
+        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx].reshape([image_shape[0], image_shape[1], 1]),
                                  tracker_image=tracker_images_m[idx].reshape([image_shape[0], image_shape[1]]),
                                  calo_image=mc_data_images_m[idx],
                                  cgan_image=gan_data_m[idx],

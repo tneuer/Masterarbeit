@@ -67,14 +67,14 @@ def clean_folders(target_folders, keep):
 if __name__ == "__main__":
     # for subfolder in ["1Good", "2Okey", "3Bad", "4Exit"]:
     #     source = "../../Results/ServerTemp/B2Dmunu/{}".format(subfolder)
-    #     keep = ["config", "architecture", "architecture_details", "EXIT_FLAG", "TrainStatistics"]
+    #     keep = ["config", "architecture", "architecture_details", "EXIT_FLAG", "TrainStatistics", "Evaluation.pdf"]
     #     clean_folders(target_folders=[source], keep=keep)
 
-    # for subfolder in ["1Good", "2Okey", "3Bad", "4Exit"]:
-    #     source = "../../Results/ServerTemp/B2Dmunu/{}".format(subfolder)
-    #     sources = [source, "../../Results/ServerTemp/B2DmunuHistory/{}".format(subfolder)]
-    #     target = "../../Results/ServerTemp/B2DmunuHistory2/{}".format(subfolder)
-    #     combine_folders(sources=sources, target=target, delete_old=False)
+    for subfolder in ["1Good", "2Okey", "3Bad", "4Exit"]:
+        source = "../../Results/ServerTemp/B2Dmunu/{}".format(subfolder)
+        sources = [source, "../../Results/ServerTemp/B2DmunuHistory/{}".format(subfolder)]
+        target = "../../Results/ServerTemp/B2DmunuHistory2/{}".format(subfolder)
+        combine_folders(sources=sources, target=target, delete_old=False)
 
 
 

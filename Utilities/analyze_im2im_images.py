@@ -93,24 +93,22 @@ for model_idx, model_path in enumerate(model_paths):
         r"std($E_{Ti}$) [GeV]", r"$E_{T,Tracker} - \sum_{i} E_{Ti}$ [MeV]"
     ]
 
-    print(mc_data_images_m.shape, gan_data_m.shape, generated_images.shape)
-    print(np.max(mc_data_images_m), np.max(gan_data_m), np.max(generated_images))
-    raise
+    gan_data_m2 = gan_data_m.reshape([-1, *image_shape[:-1]])
     for func_idx, (func, params) in enumerate(use_functions.items()):
         if func.__name__ in ["get_number_of_activated_cells", "get_max_energy"]:
-            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m, function=func,
+            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m2, function=func,
                             name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im", "CGAN"], **params)
         else:
-            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m, function=func,
+            build_histogram(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m2, function=func,
                             name=colnames[func_idx], epoch="", folder=None, ax=axes[func_idx], labels=["Geant4", "Im2Im", "CGAN"], **params)
 
-    build_histogram_HTOS(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m,
+    build_histogram_HTOS(true=mc_data_images_m, fake=generated_images, fake2=gan_data_m2,
                          energy_scaler=calo_scaler, threshold=3600, real_ET=tracker_real_ET, labels=["Geant4", "Im2Im", "CGAN"],
                          ax1=axes[-3], ax2=axes[-2])
 
     axes[-1].scatter(tracker_real_ET, get_energies(mc_data_images_m), label="Geant4", alpha=0.05)
     axes[-1].scatter(tracker_real_ET, get_energies(generated_images), label="Im2Im", alpha=0.05)
-    axes[-1].scatter(tracker_real_ET, get_energies(gan_data_m), label="CGAN", alpha=0.05)
+    axes[-1].scatter(tracker_real_ET, get_energies(gan_data_m2), label="CGAN", alpha=0.05)
     axes[-1].legend()
 
     figs.append(fig2)
@@ -122,7 +120,7 @@ for model_idx, model_path in enumerate(model_paths):
         figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
                                      tracker_image=tracker_images_m[idx].reshape([image_shape[0], image_shape[1]]),
                                      calo_image=mc_data_images_m[idx],
-                                     cgan_image=gan_data_m[idx],
+                                     cgan_image=gan_data_m2[idx],
                                      n=500,
                                      eval_functions=use_functions,
                                      title=model_path

@@ -188,7 +188,7 @@ if __name__ == "__main__":
         n = 500
         inputs = np.array([tracker_images_m[idx] for _ in range(n)])
         references = GeneratorTracker.generate_batches(inputs=inputs, batch_size=100)
-        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx],
+        figs.append(Generator.build_simulated_events(condition=gan_data_m[idx].reshape([image_shape[0], image_shape[1], 1]),
                                  tracker_image=tracker_images_m[idx].reshape([image_shape[0], image_shape[1]]),
                                  calo_image=mc_data_images_m[idx],
                                  cgan_image=gan_data_m[idx],
