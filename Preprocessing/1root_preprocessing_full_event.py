@@ -9,6 +9,7 @@
 """
 import os
 import sys
+import time
 sys.path.insert(1, "../Utilities")
 import pickle
 
@@ -106,9 +107,9 @@ def extract_tracker_info_from_root(path_to_file, tree_name, save_path=None):
         return np.arcsin(np.sqrt(row["x_projections"]**2+row["y_projections"]**2)/np.sqrt(row["x_projections"]**2+row["y_projections"]**2+z**2))
     df["theta"] = df.apply(get_theta, axis=1)
 
-    if save_path is not None:
-        with open(save_path, "wb") as f:
-            pickle.dump(df, f)
+    # if save_path is not None:
+    #     with open(save_path, "wb") as f:
+    #         pickle.dump(df, f)
     print("Tracker extracted.")
 
     return df
@@ -136,10 +137,10 @@ def convert_tracker_event_to_image(events, tracker_dim, save_path=None, show_id=
         if (Id % 10000) == 0:
             print(Id, "/", nr_events)
 
-    if save_path is not None:
-        with open(save_path, "wb") as f:
-            pickle.dump(pics, f)
-        print("Saved to {}".format(save_path))
+    # if save_path is not None:
+    #     with open(save_path, "wb") as f:
+    #         pickle.dump(pics, f)
+    #     print("Saved to {}".format(save_path))
 
     if show_id is not None:
         plt.imshow(pics[show_id])
@@ -189,10 +190,10 @@ def extract_calo_info_from_root(path_to_file, tree_name, save_path=None):
         events[key] = set_to_zero(events[key], maxval=6)
         events[key] = delete_empty_rows(events[key])
 
-    if save_path is not None:
-        with open(save_path, "wb") as f:
-            pickle.dump(events, f)
-        print("Saved to {}".format(save_path))
+    # if save_path is not None:
+    #     with open(save_path, "wb") as f:
+    #         pickle.dump(events, f)
+    #     print("Saved to {}".format(save_path))
 
     return events
 
@@ -219,10 +220,10 @@ def convert_calo_event_to_image(events, save_path=None, show_id=None):
     pics_outer = double_images(events["calo_ET_outer"])
     pics = insert(inner=events["calo_ET_inner"], outer=pics_outer)
 
-    if save_path is not None:
-        with open(save_path, "wb") as f:
-            pickle.dump(pics, f)
-            print("Saved to {}".format(save_path))
+    # if save_path is not None:
+    #     with open(save_path, "wb") as f:
+    #         pickle.dump(pics, f)
+    #         print("Saved to {}".format(save_path))
 
     if show_id is not None:
         plt.imshow(pics[show_id])
@@ -263,15 +264,15 @@ def clean_data(tracker_events, calo_events, save_path_tracker=None, save_path_ca
     calo_events["calo_ET_outer"] = calo_events_outer
     assert len(tracker_events) == len(calo_events["calo_ET_inner"]) == len(calo_events["calo_ET_outer"])
 
-    if save_path_tracker is not None:
-        with open(save_path_tracker, "wb") as f:
-            pickle.dump(tracker_events, f)
-    if save_path_calo is not None:
-        with open(save_path_calo, "wb") as f:
-            pickle.dump(calo_events, f)
-    if save_path_log is not None:
-        log_cleaning_process(nr_noise_inner, nr_noise_outer, sum(is_empty_calo),
-                         sum(~is_clean), original_number_events, save_path_log)
+    # if save_path_tracker is not None:
+    #     with open(save_path_tracker, "wb") as f:
+    #         pickle.dump(tracker_events, f)
+    # if save_path_calo is not None:
+    #     with open(save_path_calo, "wb") as f:
+    #         pickle.dump(calo_events, f)
+    # if save_path_log is not None:
+    #     log_cleaning_process(nr_noise_inner, nr_noise_outer, sum(is_empty_calo),
+    #                      sum(~is_clean), original_number_events, save_path_log)
 
     return tracker_events, calo_events
 
@@ -317,12 +318,12 @@ def is_empty(images):
 
 
 def log_cleaning_process(noise_inner, noise_outer, nr_empty, nr_clean, nr_events, save_path):
-    with open(save_path+"/README.txt", "w") as f:
-        f.write(
-            "Noise inner: {}\nNoise outer: {}\n".format(sum(noise_inner!=0), sum(noise_outer!=0)) +
-            "\nEmpty: {}\n".format(nr_empty) +
-            "\nDeleted: {} / {}".format(nr_clean, nr_events)
-        )
+    # with open(save_path+"/README.txt", "w") as f:
+    #     f.write(
+    #         "Noise inner: {}\nNoise outer: {}\n".format(sum(noise_inner!=0), sum(noise_outer!=0)) +
+    #         "\nEmpty: {}\n".format(nr_empty) +
+    #         "\nDeleted: {} / {}".format(nr_clean, nr_events)
+    #     )
     fig_calo_distribution, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 8), facecolor='w', edgecolor='k')
     fig_calo_distribution.subplots_adjust(wspace=0.2, hspace=0.05)
     ax[0].hist(noise_inner, bins=20)
@@ -354,8 +355,12 @@ if __name__ == "__main__":
 
 
     if (convert_to_image):
+        start = time.clock()
         pics_tracker_piplus = convert_tracker_event_to_image(events=tracker_events, tracker_dim=tracker_dim,
                                                              save_path="{}/tracker_images.pickle".format(data_save_path))
+        end = time.clock()
+        print(end-start, (end-start)/60)
+        raise
         # calo_pics_piplus = convert_calo_event_to_image(calo_events,
         #                                                   save_path="{}/calo_images.pickle".format(data_save_path))
 

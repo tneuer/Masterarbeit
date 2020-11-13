@@ -48,12 +48,12 @@ class TrainedIm2Im(TrainedGenerator):
         )
         return output
 
-    def generate_batches(self, inputs, batch_size):
-        nr_batches = int(np.ceil(len(inputs) / batch_size))
-        results = [0]*len(inputs)
+    def generate_batches(self, list_of_inputs, batch_size):
+        nr_batches = int(np.ceil(len(list_of_inputs) / batch_size))
+        results = [0]*len(list_of_inputs)
         for batch in range(nr_batches):
             print("Batch:", batch+1,"/",nr_batches)
-            current_batch = inputs[batch*batch_size:(batch+1)*batch_size]
+            current_batch = list_of_inputs[batch*batch_size:(batch+1)*batch_size]
             generated_samples = self.generate_from_condition(inputs=current_batch)
             results[batch*batch_size:(batch+1)*batch_size] = generated_samples[:]
         results = np.stack(results) #.reshape([-1, *generated_samples.shape[1:], 1])
@@ -61,15 +61,16 @@ class TrainedIm2Im(TrainedGenerator):
 
 
     def build_simulated_events(self, condition, tracker_image, calo_image, eval_functions,
-                               cgan_image=None, n=10, title=None, reference_images=None):
+                               cgan_image=None, n=10, title=None, reference_images=None, func_titles=None, x_labels=None,
+                               scaler=1):
 
         inputs = np.array([condition for _ in range(n)])
-        outputs = self.generate_batches(inputs=inputs, batch_size=100)
+        outputs = self.generate_batches(list_of_inputs=inputs, batch_size=100)*scaler
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 
-        layout = get_layout(n=4+len(eval_functions)) # Tracker, Calo, GAN, Mean generated
-        fig, ax = plt.subplots(nrows=layout[0], ncols=layout[1], figsize=(layout[1]*5, layout[0]*5))
-        fig.subplots_adjust(wspace=0.2, hspace=0.3)
+        layout = get_layout(n=5+len(eval_functions)) # Tracker, Calo, GAN, Mean generated
+        fig, ax = plt.subplots(nrows=2, ncols=5, figsize=(layout[1]*5, layout[0]*5))
+        fig.subplots_adjust(wspace=0.2, hspace=0.1)
         ax = ax.ravel()
 
         if cgan_image is None:
@@ -78,17 +79,28 @@ class TrainedIm2Im(TrainedGenerator):
             show_images = [tracker_image, calo_image, mean_output]
         else:
             E_max = np.max(np.stack((calo_image, cgan_image, mean_output), axis=0))
-            titles = ["Tracker", "Calorimeter", "CGAN", "Generated average (n={})".format(n)]
+            titles = ["Tracker", "Calorimeter", "cGAN", "Im2Im average (n={})".format(n)]
             show_images = [tracker_image, calo_image, cgan_image, mean_output]
+
+        if reference_images is not None:
+            E_max = np.max([E_max, np.max(reference_images)])
+            titles.append("Direct average (n={})".format(len(reference_images)))
+            show_images.append(np.mean(reference_images, axis=0).reshape(calo_image.shape))
+
         for i, image in enumerate(show_images):
             if titles[i] == "Tracker":
                 ax[i].imshow(image)
             else:
-                im = ax[i].imshow(image, vmin=0, vmax=E_max)
+                im = ax[i].imshow(image)#, vmin=0, vmax=E_max)
             ax[i].get_xaxis().set_visible(False)
             ax[i].get_yaxis().set_visible(False)
             ax[i].set_title(titles[i])
-        fig.colorbar(im, ax=ax[:4], shrink=0.6)
+        # fig.colorbar(im, ax=ax[4], shrink=0.6)
+
+        if func_titles is None:
+            func_titles = [func.__name__ for func in eval_functions]
+        if x_labels is None:
+            x_labels = ["" for _ in eval_functions]
 
         for i, (func, params) in enumerate(eval_functions.items()):
             if ("cells" in func.__name__) or ("max" in func.__name__):
@@ -107,33 +119,27 @@ class TrainedIm2Im(TrainedGenerator):
                 real_value /= self._image_shape[1]
                 if reference_images is not None:
                     ref_values /= self._image_shape[1]
-                ax[i+4].set_xlim(-1, 1)
+                ax[i+5].set_xlim(-1, 1)
             elif "mass_y" in func.__name__:
                 fake_values /= self._image_shape[0]
                 real_value /= self._image_shape[0]
                 if reference_images is not None:
                     ref_values /= self._image_shape[0]
-                ax[i+4].set_xlim(-1, 1)
+                ax[i+5].set_xlim(-1, 1)
 
             elif "resolution" in func.__name__:
-                ax[i+4].set_xlabel("tracker-reco")
+                ax[i+5].set_xlabel("tracker-reco")
 
             if reference_images is not None:
-                ax[i+4].hist([ref_values, fake_values], bins=20, histtype="step", stacked=False,
-                             label=["reference", "generated"], density=True)
-                ax[i+4].legend()
+                ax[i+5].hist([ref_values, fake_values], bins=20, histtype="step", stacked=False,
+                             label=["Direct", "Im2Im"], density=True)
+                ax[i+5].legend()
             else:
-                ax[i+4].hist(fake_values, bins=20)
-            ax[i+4].axvline(real_value, color='k', linestyle='dashed')
-            if "get_energies" == func.__name__:
-                ax[i+4].axvline(real_value+0.1*real_value, color='gray', linestyle='dashed')
-                ax[i+4].axvline(real_value-0.1*real_value, color='gray', linestyle='dashed')
+                ax[i+5].hist(fake_values, bins=20)
+            ax[i+5].axvline(real_value, color='k', linestyle='dashed')
+            ax[i+5].set_title(func_titles[i])
+            ax[i+5].set_xlabel(x_labels[i])
 
-            ax[i+4].set_title(func.__name__)
-
-        if reference_images is not None:
-            ax[-1].imshow(np.mean(reference_images, axis=0).reshape(calo_image.shape))
-            ax[-1].set_title("{} references".format(len(reference_images)))
         if title is not None:
             plt.text(0.05, 0.95, title, transform=fig.transFigure, size=24)
         return fig, ax

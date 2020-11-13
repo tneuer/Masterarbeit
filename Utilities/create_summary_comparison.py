@@ -116,7 +116,6 @@ if __name__ == "__main__":
         generated_images_from_cgan = clip_outer(images=generated_images_from_cgan, clipval=1/4)
 
 
-        model_path_tracker = "{}/{}/".format(result_path, model)
         meta_path_tracker = model_path_tracker + "TFGraphs/"
         config_path_tracker = model_path_tracker + "config.json"
         GeneratorTracker = TrainedIm2Im(path_to_meta=meta_path_tracker, path_to_config=config_path_tracker)

@@ -112,7 +112,7 @@ def get_squares_from_tracker(events, width, max_x, max_y):
     return rectangles
 
 
-def plot_tracker_image_with_signal_frame(images, events, fr_width, idx, padding=None, show=True, ax=None):
+def plot_tracker_image_with_signal_frame(images, tracker_events, fr_width, idx, padding=None, show=True, ax=None):
     assert isinstance(fr_width, int), "fr_width must be integer. Given: {}.".format(type(fr_width))
     assert np.min(images[0].shape)*0.2 > fr_width, (
         "fr_width must not be more than 20% of image size. Max: {}. Given: {}.".format(np.min(images[0].shape)*0.2, fr_width)
@@ -140,7 +140,7 @@ def plot_tracker_image_with_signal_frame(images, events, fr_width, idx, padding=
         for i, rect in enumerate(signal_rects):
             frame = patches.Rectangle(rect.get_corner(), fr_width, fr_width, linewidth=1, edgecolor='g', facecolor='none')
             ax.add_patch(frame)
-            particle_energy = events.loc[idx, "{}_real_ET".format(particles[i])]
+            particle_energy = tracker_events.loc[idx, "{}_real_ET".format(particles[i])]
             image_title += "\n{}: {} MeV".format(particles[i], int(particle_energy))
         ax.set_title(image_title)
 
@@ -241,20 +241,27 @@ def plot_calo_image_with_triggered_and_signal_frame(
     assert tracker_images.shape == calo_images.shape[:3], (
         "Same shape for tracker and calorimeter neeeded. Tracker: {}. Calorimeter: {}.".format(tracker_images.shape, calo_images.shape)
     )
-    if axs is None:
+    if axs is None and show:
         fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(16, 12))
+    elif axs is None and not show:
+        axs = [None, None]
 
-    signal_squares, _ = plot_tracker_image_with_signal_frame(
-        images=tracker_images, events=tracker_events, fr_width=fr_width, idx=idx, padding=padding, show=False, ax=axs[0]
+
+    signal_squares = plot_tracker_image_with_signal_frame(
+        images=tracker_images, tracker_events=tracker_events, fr_width=fr_width, idx=idx, padding=padding, show=False, ax=axs[0]
     )
-    inner_squares, outer_squares, _ = plot_calo_image_with_triggered_frame(
+    calo_output_trigger = plot_calo_image_with_triggered_frame(
         images=calo_images, idx=idx, threshold=threshold, show=False, ax=axs[1]
     )
+    if isinstance(signal_squares, tuple):
+        signal_squares = signal_squares[0]
+    inner_squares = calo_output_trigger[0]
+    outer_squares = calo_output_trigger[1]
 
     is_TIS, is_TOS = is_TIS_or_TOS(signal_squares=signal_squares, inner_squares=inner_squares, outer_squares=outer_squares)
 
     image = calo_images[idx].reshape([calo_images.shape[1], calo_images.shape[2]])
-    if show or (axs is not None):
+    if show or (axs[0] is not None):
         im = axs[2].imshow(image)
         for i, square in enumerate(signal_squares):
             frame = patches.Rectangle(square.get_corner(), fr_width, fr_width, linewidth=1, edgecolor='g', facecolor='none')
@@ -274,9 +281,9 @@ def plot_calo_image_with_triggered_and_signal_frame(
         plt.tight_layout()
         if show:
             plt.show()
-        return signal_squares, inner_squares, outer_squares, fig, axs
+        return signal_squares, inner_squares, outer_squares, is_TIS, is_TOS, axs
     else:
-        return signal_squares, inner_squares, outer_squares
+        return signal_squares, inner_squares, outer_squares, is_TIS, is_TOS
 
 
 
@@ -334,25 +341,33 @@ if __name__ == "__main__":
     tracker_events_m = tracker_events.iloc[:, :]
 
 
-    # plot_tracker_image_with_signal_frame(images=tracker_images_m, events=tracker_events_m, fr_width=7, idx=4, padding=padding, show=True)
+    # plot_tracker_image_with_signal_frame(images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=4, padding=padding, show=True)
     # plot_calo_image_with_triggered_frame(images=mc_data_images, idx=16, threshold=3600, show=True)
-    # for idx in range(0, 1000):
-    #     if tracker_events_m.iloc[idx]["is_TIS"]:
-    #         print(idx)
-    #         plot_calo_image_with_triggered_and_signal_frame(
-    #             tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
-    #             calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
-    #         )
-    #     plt.show()
+    for idx in range(0, 1000):
+        if tracker_events_m.iloc[idx]["is_TIS"] or tracker_events_m.iloc[idx]["is_TOS"]:
+            _, _, _, my_Tis, my_Tos = plot_calo_image_with_triggered_and_signal_frame(
+                tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
+                calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
+            )
 
-    for idx_key in {"TIS": 21, "TOS": 31, "TISTOS": 152}:
-        idx = {"TIS": 21, "TOS": 31, "TISTOS": 152}[idx_key]
-        print(idx)
-        plot_calo_image_with_triggered_and_signal_frame(
-            tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
-            calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
-        )
-        plt.savefig("../../Thesis/figures/Data/ex_{}.png".format(idx_key))
+            if (tracker_events_m.iloc[idx]["is_TIS"] != my_Tis) or (tracker_events_m.iloc[idx]["is_TOS"] != my_Tos):
+                print(idx)
+                fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(16, 12))
+                _, _, _, my_Tis, my_Tos, _ = plot_calo_image_with_triggered_and_signal_frame(
+                    tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
+                    calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=axs
+                )
+                fig.suptitle("IDX: {}".format(idx))
+                plt.show()
+
+    # for idx_key in {"TIS": 21, "TOS": 31, "TISTOS": 152}:
+    #     idx = {"TIS": 21, "TOS": 31, "TISTOS": 152}[idx_key]
+    #     print(idx)
+    #     plot_calo_image_with_triggered_and_signal_frame(
+    #         tracker_images=tracker_images_m, tracker_events=tracker_events_m, fr_width=7, idx=idx,
+    #         calo_images=mc_data_images, threshold=3200, padding=padding, show=False, axs=None
+    #     )
+    #     plt.savefig("../../Thesis/figures/Data/ex_{}.png".format(idx_key))
 
     raise
 

@@ -68,54 +68,54 @@ with open(config_path, "r") as f:
     keep_cols = config["keep_cols"]
 
 data, scaler = init.load_processed_data(data_path=data_path, mode="test", return_scaler=True)
-# calo_images = padding_zeros(data["Calo"], **padding)
-# tracker_events = data["Tracker"]
-# tracker_events_list = []
-# for _, row in tracker_events.iterrows():
-#     tracker_events_list.append([row[keep_cols].tolist()])
-# tracker_events_list = np.array(tracker_events_list)
-# image_shape = calo_images.shape[1:]
+calo_images = padding_zeros(data["Calo"], **padding)
+tracker_events = data["Tracker"]
+tracker_events_list = []
+for _, row in tracker_events.iterrows():
+    tracker_events_list.append([row[keep_cols].tolist()])
+tracker_events_list = np.array(tracker_events_list)
+image_shape = calo_images.shape[1:]
 
 
 #####################################################################################################
 # Check for correctness
 #####################################################################################################
-data_path = "../../Data/B2Dmunu/Debug"
-with open(data_path+"/calo_images.pickle", "rb") as f:
-    calo_images = pickle.load(f)
-    calo_images = padding_zeros(calo_images, **padding)
-    image_shape = calo_images.shape[1:]
-    print(image_shape)
-with open(data_path+"/tracker_events.pickle", "rb") as f:
-    tracker_events = pickle.load(f)
-with open(data_path+"/tracker_input.pickle", "rb") as f:
-    tracker_events_list = np.array(pickle.load(f))
-with open(data_path+"/tracker_images.pickle", "rb") as f:
-    tracker_images = pickle.load(f)
+# data_path = "../../Data/B2Dmunu/Debug"
+# with open(data_path+"/calo_images.pickle", "rb") as f:
+#     calo_images = pickle.load(f)
+#     calo_images = padding_zeros(calo_images, **padding)
+#     image_shape = calo_images.shape[1:]
+#     print(image_shape)
+# with open(data_path+"/tracker_events.pickle", "rb") as f:
+#     tracker_events = pickle.load(f)
+# with open(data_path+"/tracker_input.pickle", "rb") as f:
+#     tracker_events_list = np.array(pickle.load(f))
+# with open(data_path+"/tracker_images.pickle", "rb") as f:
+#     tracker_images = pickle.load(f)
 
-piplus_data = pd.read_csv("../../Data/PiplusLowerP/{}/tracker_events.csv".format(datasize))
-piplus_min_x, piplus_max_x = min(piplus_data["x_projections"]), max(piplus_data["x_projections"])
-piplus_min_y, piplus_max_y = min(piplus_data["y_projections"]), max(piplus_data["y_projections"])
+# piplus_data = pd.read_csv("../../Data/PiplusLowerP/{}/tracker_events.csv".format(datasize))
+# piplus_min_x, piplus_max_x = min(piplus_data["x_projections"]), max(piplus_data["x_projections"])
+# piplus_min_y, piplus_max_y = min(piplus_data["y_projections"]), max(piplus_data["y_projections"])
 
-tracker_events_correct = tracker_events.copy()
-colnames = scaler["Names"]
-for col in ["x_projections", "y_projections"]:
-    col_idx = np.where(colnames==col)[0][0]
-    std_mean = scaler["Tracker"].mean_[col_idx]
-    std_var = scaler["Tracker"].var_[col_idx]
+# tracker_events_correct = tracker_events.copy()
+# colnames = scaler["Names"]
+# for col in ["x_projections", "y_projections"]:
+#     col_idx = np.where(colnames==col)[0][0]
+#     std_mean = scaler["Tracker"].mean_[col_idx]
+#     std_var = scaler["Tracker"].var_[col_idx]
 
-    if col in ["x_projections"]:
-        tracker_events[col] = tracker_events[col].apply(lambda x: x[np.logical_and(x>piplus_min_x, x<piplus_max_x)])
-    elif col in ["y_projections"]:
-        tracker_events[col] = tracker_events[col].apply(lambda y: y[np.logical_and(y>piplus_min_y, y<piplus_max_y)])
+#     if col in ["x_projections"]:
+#         tracker_events[col] = tracker_events[col].apply(lambda x: x[np.logical_and(x>piplus_min_x, x<piplus_max_x)])
+#     elif col in ["y_projections"]:
+#         tracker_events[col] = tracker_events[col].apply(lambda y: y[np.logical_and(y>piplus_min_y, y<piplus_max_y)])
 
-    tracker_events_correct[col] = tracker_events[col].apply(lambda x: (x - std_mean) / np.sqrt(std_var))
-tracker_events_correct["real_ET"] = tracker_events_correct["real_ET"].apply(lambda x: x/scaler["Calo"])
+#     tracker_events_correct[col] = tracker_events[col].apply(lambda x: (x - std_mean) / np.sqrt(std_var))
+# tracker_events_correct["real_ET"] = tracker_events_correct["real_ET"].apply(lambda x: x/scaler["Calo"])
 
-def concatenate_event(row):
-    return list(zip(row["x_projections"], row["y_projections"], row["real_ET"]))
-tracker_correct_list = tracker_events_correct.apply(concatenate_event, axis=1)
-tracker_correct_list = np.array([np.reshape([list(track) for track in event], (-1, 3)) for event in tracker_correct_list])
+# def concatenate_event(row):
+#     return list(zip(row["x_projections"], row["y_projections"], row["real_ET"]))
+# tracker_correct_list = tracker_events_correct.apply(concatenate_event, axis=1)
+# tracker_correct_list = np.array([np.reshape([list(track) for track in event], (-1, 3)) for event in tracker_correct_list])
 
 # n = 5
 # fig, axs = plt.subplots(nrows=n, ncols=3, figsize=(16, 12))
@@ -181,7 +181,7 @@ tracker_correct_list = np.array([np.reshape([list(track) for track in event], (-
 # raise
 
 #####################################################################################################
-# Generate for thesis
+# Generate plot for thesis
 #####################################################################################################
 # data_path = "../../Data/B2Dmunu/TestingPurpose"
 # with open(data_path+"/calo_images.pickle", "rb") as f:
@@ -190,8 +190,13 @@ tracker_correct_list = np.array([np.reshape([list(track) for track in event], (-
 #     image_shape = calo_images.shape[1:]
 # with open(data_path+"/tracker_input.pickle", "rb") as f:
 #     tracker_events = pickle.load(f)
+# with open(data_path+"/tracker_images.pickle", "rb") as f:
+#     tracker_images = pickle.load(f)
 
 # idx = 34
+# fig = plt.figure()
+# plt.imshow(padding_zeros(tracker_images, top=6, bottom=6)[idx].reshape([64, 64]))
+# plt.savefig("../../Thesis/figures/Data/part2_tracker_image.png")
 # tracker_event = tracker_events[idx]
 # generated_image = Generator.generate_multiple_overlay_from_condition(lists_of_inputs=[tracker_event])
 

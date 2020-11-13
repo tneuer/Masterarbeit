@@ -368,8 +368,8 @@ def build_tracker_calo_images(data, n, calo_components=False, seed=42, save_path
     return fig, ax
 
 
-def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, folder=None, ax=None, use_legend=False, labels=None,
-                     **kwargs):
+def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, folder=None, ax=None, use_legend=False,
+                    labels=None, absval=None, nr_bins=20, **kwargs):
     eval_true = function(true, **kwargs)
     if labels is None:
         labels = ["true", "fake", "fake2"]
@@ -389,7 +389,12 @@ def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, fol
 
     if name.lower() == "resolution":
         minval = -2.5
-    bins = np.linspace(minval, maxval, 20)
+    if absval is not None:
+        if np.abs(maxval) > absval:
+            maxval = absval
+        if np.abs(minval) > absval:
+            minval = absval if minval > 0 else -absval
+    bins = np.linspace(minval, maxval, nr_bins)
 
     if ax is None:
         _, ax = plt.subplots()
@@ -428,21 +433,34 @@ def build_histogram(true, function, name, fake=None, fake2=None, epoch=None, fol
     return ax
 
 
-def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, fake2=None, labels=None, ax1=None, ax2=None):
+def build_histogram_HTOS(true, fake, energy_scaler, threshold, real_ET, fake2=None, labels=None, ax1=None, ax2=None, triggered=None):
     if fake is not None:
         assert true.shape == fake.shape, "real and fake shape differ. real: {}, fake: {}.".format(true.shape, fake.shape)
-        is_triggered_fake = is_triggered_images(fake, energy_scaler, threshold)
+        if triggered is None:
+            is_triggered_fake = is_triggered_images(fake, energy_scaler, threshold)
+        else:
+            is_triggered_fake = triggered[1]
     if fake2 is not None:
         assert true.shape == fake2.shape, "real and fake2 shape differ. real: {}, fake2: {}.".format(true.shape, fake2.shape)
-        is_triggered_fake2 = is_triggered_images(fake2, energy_scaler, threshold)
+        if triggered is None:
+            is_triggered_fake2 = is_triggered_images(fake2, energy_scaler, threshold)
+        else:
+            is_triggered_fake2 = triggered[2]
     if ax1 is None:
         _, ax1 = plt.subplots()
     if labels is None:
         labels = ["true", "fake", "fake2"]
-    is_triggered_true = is_triggered_images(true, energy_scaler, threshold)
+
+    if triggered is None:
+        is_triggered_true = is_triggered_images(true, energy_scaler, threshold)
+    else:
+        if fake is not None or fake2 is not None:
+            is_triggered_true = triggered[0]
+        else:
+            is_triggered = triggered
 
     bin_nr = 20
-    bins = np.linspace(np.min(real_ET), np.max(real_ET), 20)
+    bins = np.linspace(np.min(real_ET), np.max(real_ET), bin_nr)
     nr_real, _, _ = ax1.hist(real_ET, bins=bins, label="Tracker", histtype="step", color="black")
     nr_true, _, _ = ax1.hist(real_ET[is_triggered_true], bins=bins, label=labels[0], histtype="step")
 
