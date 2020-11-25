@@ -20,17 +20,15 @@ from building_blocks.networks import Generator, Discriminator
 from building_blocks.generativeModels import GenerativeModel
 
 class VanillaGAN(GenerativeModel):
-    def __init__(self, x_dim, z_dim, gen_architecture, disc_architecture, last_layer_activation,
-                 folder="./VanillaGan", image_shape=None
+    def __init__(self, x_dim, z_dim, gen_architecture, disc_architecture, folder="./VanillaGan"
         ):
-        super(VanillaGAN, self).__init__(x_dim, z_dim, [gen_architecture, disc_architecture],
-                                   last_layer_activation, folder, image_shape)
+        super(VanillaGAN, self).__init__(x_dim, z_dim, [gen_architecture, disc_architecture], folder)
 
         self._gen_architecture = self._architectures[0]
+        self._gen_architecture[-1][1]["name"] = "Output"
         self._disc_architecture = self._architectures[1]
 
         ################# Define architecture
-        self._gen_architecture.append([logged_dense, {"units": x_dim, "activation": self._last_layer_activation, "name": "Output"}])
         self._generator = Generator(self._gen_architecture, name="Generator")
 
         self._disc_architecture.append([logged_dense, {"units": 1, "activation": tf.nn.sigmoid, "name": "Output"}])

@@ -12,7 +12,7 @@ import re
 import os
 import cv2
 
-method = "CVAE_log"
+path = "/home/tneuer/Backup/Uni/Masterarbeit/Programs/PlotsForMaster/Results/wasserstein_patchTrue_fmFalse1/GeneratedSamples"
 
 def atoi(text):
     return int(text) if text.isdigit() else text
@@ -33,15 +33,7 @@ def make_video_of(folder, outname):
     for image in images:
         video.write(cv2.imread(os.path.join(image_folder, image)))
 
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
     video.release()
 
-if "VAE" in method:
-    make_video_of("../Autoencoders/Tensorflow/{}/Spectrum".format(method), '../Autoencoders/Tensorflow/{}/spectrum.avi'.format(method))
-    make_video_of("../Autoencoders/Tensorflow/{}/Cluster".format(method), '../Autoencoders/Tensorflow/{}/cluster.avi'.format(method))
-elif "GAN" in method:
-    make_video_of("../GANs/Tensorflow/{}/Spectrum".format(method), '../GANs/Tensorflow/{}/spectrum.avi'.format(method))
-    make_video_of("../GANs/Tensorflow/{}/Cluster".format(method), '../GANs/Tensorflow/{}/cluster.avi'.format(method))
-else:
-    print("No valid log")
-# make_video_of("../GANs/{}/Cluster".format(method), './Tensorflow/{}/cluster.avi'.format(method))
+make_video_of(path, path+"/process.avi")

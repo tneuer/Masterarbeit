@@ -13,6 +13,7 @@ import sys
 sys.path.insert(1, "../Utilities")
 sys.path.insert(1, "../Preprocessing")
 import pickle
+import matplotlib
 
 import numpy as np
 import pandas as pd
@@ -23,8 +24,8 @@ from functionsOnImages import get_energies, get_max_energy, get_number_of_activa
 from functionsOnImages import get_center_of_mass_x, get_energy_resolution, get_mean_image
 
 data_path = "../../Data/PiplusMixedP/TestingPurpose"
-savefolder = "../../Thesis/figures/Data"
-mpl.rcParams["image.cmap"] = "YlOrBr"
+savefolder = "../../Thesis/presentation/figures/Data"
+# mpl.rcParams["image.cmap"] = "YlOrBr"
 
 if os.path.exists(data_path+"/tracker_events.csv"):
     tracker_events = pd.read_csv(data_path+"/tracker_events.csv")
@@ -92,15 +93,12 @@ def my_hist(ax, values, nr_bins, x_label, y_label, x_rot=30, y_rot=60, nr_x_tick
 ############ Build mean calo images
 #############################################################################################################
 # mpl.rcParams.update({"font.size": 6})
-# fig, axs = plt.subplots(nrows=1, ncols=4, gridspec_kw={'width_ratios': [5, 5, 5, 1]})
+# fig, axs = plt.subplots(nrows=1, ncols=4, gridspec_kw={'width_ratios': [5, 5, 5, 1]}, figsize=(8,2.6))
+# fig.subplots_adjust(left=0.05, bottom=0.07, right=0.99, top=0.99, wspace=0.3, hspace=0.4)
 # inner_mean = get_mean_image(calo_events["calo_ET_inner"])
 # outer_mean = get_mean_image(calo_events["calo_ET_outer"])
 # calo_mean = get_mean_image(calo_images)
 # E_max = np.max([np.max(inner_mean), np.max(outer_mean), np.max(calo_mean)])
-
-# print(np.max(calo_events["calo_ET_inner"]))
-# print(np.max(calo_events["calo_ET_outer"]))
-# print(np.max(calo_images))
 
 # axs[0].imshow(inner_mean, vmin=0, vmax=E_max)
 # axs[0].set_title("Inner:\nGeometry: {}\nactive cells: {} ".format(inner_mean.shape, np.sum(inner_mean>0)))
@@ -118,54 +116,54 @@ def my_hist(ax, values, nr_bins, x_label, y_label, x_rot=30, y_rot=60, nr_x_tick
 ############ Plot calorimeter distribution
 #############################################################################################################
 
-mpl.rcParams.update({"font.size": 6})
-props = dict(boxstyle='round', facecolor='wheat', alpha=0.5, x=0.65, y=0.95, fs=6)
-descr_props = dict(facecolor='white', x=0.65, y=0.6, fs=8)
-fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(8, 5))
-plt.subplots_adjust(wspace=0.4, hspace=0.45)
-axs = np.ravel(axs)
-nr_bins = 30
+# mpl.rcParams.update({"font.size": 6})
+# props = dict(boxstyle='round', facecolor='wheat', alpha=0.5, x=0.65, y=0.95, fs=6)
+# descr_props = dict(facecolor='white', x=0.65, y=0.6, fs=8)
+# fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(8, 5))
+# plt.subplots_adjust(wspace=0.4, hspace=0.45)
+# axs = np.ravel(axs)
+# nr_bins = 30
 
-my_hist(
-        ax=axs[0], values=get_energies(calo_images)/1000, nr_bins=nr_bins, props=props,
-        x_label="Image transverse energy [GeV]", y_label="Count",
-        descr=r"$\sum_{ij} E_{T,ijk}$", descr_props=descr_props, digit=0
-)
-my_hist(
-        ax=axs[1], values=get_max_energy(calo_images)/1000, nr_bins=nr_bins, props=props,
-        x_label=r"Image max transverse energy [GeV]", y_label="Count",
-        descr=r"$\max_{ij} (E_{T,ijk})$", descr_props=descr_props, digit=0
-)
-nr_cells = get_number_of_activated_cells(calo_images)
-my_hist(
-        ax=axs[2], values=nr_cells[nr_cells<=30], nr_bins=30, props=props,
-        x_label=r"Number of activated cells", y_label="Count",
-        descr=r"$\sum_{ij} [E_{T,ijk} > 6MeV]$", descr_props=descr_props, digit=0
-)
-my_hist(
-        ax=axs[3], values=get_center_of_mass_x(calo_images), nr_bins=nr_bins, props=props,
-        x_label=r"Image x-center-of-mass [x pixel]", y_label="Count",
-        descr=r"$\dfrac{\sum_{ij} x_{ij} \cdot E_{T,ijk}}{\sum_{ij} E_{T,ijk}}$", descr_props=dict(facecolor='white', x=0.05, y=0.95, fs=5),
-        digit=-1
-)
-resolution = get_energy_resolution(calo_images, tracker_events["real_ET"])/1000
-my_hist(
-        ax=axs[4], values=resolution[np.abs(resolution)<15], nr_bins=nr_bins, props=props,
-        x_label=r"Image resolution [GeV]", y_label="Count",
-        descr=r"$E_{T,Tracker} - \sum_{ij} E_{T,ijk}$", descr_props=dict(facecolor='white', x=0.55, y=0.6, fs=7), digit=0
-)
-use_images = np.logical_and(get_energies(calo_images[:5000]) < 15000, tracker_events["real_ET"][:5000] < 30000)
-axs[5].scatter(tracker_events["real_ET"][:5000][use_images]/1000, get_energies(calo_images[:5000])[use_images]/1000, s=0.5)
-axs[5].plot([0, 1], [0, 1], transform=axs[5].transAxes, c="black", linestyle="--")
-axs[5].set_xlabel("Tracker energies [GeV]")
-axs[5].set_ylabel("Calorimeter energies [GeV]")
-axs[5].set_xlim((0, 20))
-ticks = [0, 5, 10, 15, 20]
-axs[5].set_xticks(ticks)
-axs[5].set_xticklabels(labels=ticks, rotation=30, ha='right')
-axs[5].set_yticks(ticks)
-axs[5].set_yticklabels(labels=ticks, rotation=60, ha='right')
-plt.savefig(savefolder+"/dist_calorimeter.png", dpi=400)
+# my_hist(
+#         ax=axs[0], values=get_energies(calo_images)/1000, nr_bins=nr_bins, props=props,
+#         x_label="Image transverse energy [GeV]", y_label="Count",
+#         descr=r"$\sum_{ij} E_{T,ijk}$", descr_props=descr_props, digit=0
+# )
+# my_hist(
+#         ax=axs[1], values=get_max_energy(calo_images)/1000, nr_bins=nr_bins, props=props,
+#         x_label=r"Image max transverse energy [GeV]", y_label="Count",
+#         descr=r"$\max_{ij} (E_{T,ijk})$", descr_props=descr_props, digit=0
+# )
+# nr_cells = get_number_of_activated_cells(calo_images)
+# my_hist(
+#         ax=axs[2], values=nr_cells[nr_cells<=30], nr_bins=30, props=props,
+#         x_label=r"Number of activated cells", y_label="Count",
+#         descr=r"$\sum_{ij} [E_{T,ijk} > 6MeV]$", descr_props=descr_props, digit=0
+# )
+# my_hist(
+#         ax=axs[3], values=get_center_of_mass_x(calo_images), nr_bins=nr_bins, props=props,
+#         x_label=r"Image x-center-of-mass [x pixel]", y_label="Count",
+#         descr=r"$\dfrac{\sum_{ij} x_{ij} \cdot E_{T,ijk}}{\sum_{ij} E_{T,ijk}}$", descr_props=dict(facecolor='white', x=0.05, y=0.95, fs=5),
+#         digit=-1
+# )
+# resolution = get_energy_resolution(calo_images, tracker_events["real_ET"])/1000
+# my_hist(
+#         ax=axs[4], values=resolution[np.abs(resolution)<15], nr_bins=nr_bins, props=props,
+#         x_label=r"Image resolution [GeV]", y_label="Count",
+#         descr=r"$E_{T,Tracker} - \sum_{ij} E_{T,ijk}$", descr_props=dict(facecolor='white', x=0.55, y=0.6, fs=7), digit=0
+# )
+# use_images = np.logical_and(get_energies(calo_images[:5000]) < 15000, tracker_events["real_ET"][:5000] < 30000)
+# axs[5].scatter(tracker_events["real_ET"][:5000][use_images]/1000, get_energies(calo_images[:5000])[use_images]/1000, s=0.5)
+# axs[5].plot([0, 1], [0, 1], transform=axs[5].transAxes, c="black", linestyle="--")
+# axs[5].set_xlabel("Tracker energies [GeV]")
+# axs[5].set_ylabel("Calorimeter energies [GeV]")
+# axs[5].set_xlim((0, 20))
+# ticks = [0, 5, 10, 15, 20]
+# axs[5].set_xticks(ticks)
+# axs[5].set_xticklabels(labels=ticks, rotation=30, ha='right')
+# axs[5].set_yticks(ticks)
+# axs[5].set_yticklabels(labels=ticks, rotation=60, ha='right')
+# plt.savefig(savefolder+"/dist_calorimeter.png", dpi=400)
 
 #############################################################################################################
 ############ Plot example tracker and calo image

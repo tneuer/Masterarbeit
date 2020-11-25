@@ -69,8 +69,8 @@ class TrainedIm2Im(TrainedGenerator):
         mean_output = np.mean(outputs, axis=0).reshape(calo_image.shape)
 
         layout = get_layout(n=5+len(eval_functions)) # Tracker, Calo, GAN, Mean generated
-        fig, ax = plt.subplots(nrows=2, ncols=5, figsize=(layout[1]*5, layout[0]*5))
-        fig.subplots_adjust(wspace=0.2, hspace=0.1)
+        fig, ax = plt.subplots(nrows=2, ncols=5, figsize=(16, 12))
+        fig.subplots_adjust(left=0.05, bottom=0.07, right=0.99, top=0.99, wspace=0.2, hspace=0.)
         ax = ax.ravel()
 
         if cgan_image is None:
@@ -79,12 +79,12 @@ class TrainedIm2Im(TrainedGenerator):
             show_images = [tracker_image, calo_image, mean_output]
         else:
             E_max = np.max(np.stack((calo_image, cgan_image, mean_output), axis=0))
-            titles = ["Tracker", "Calorimeter", "cGAN", "Im2Im average (n={})".format(n)]
+            titles = ["Tracker", "Calorimeter", "STP", "CIR average (n={})".format(n)]
             show_images = [tracker_image, calo_image, cgan_image, mean_output]
 
         if reference_images is not None:
             E_max = np.max([E_max, np.max(reference_images)])
-            titles.append("Direct average (n={})".format(len(reference_images)))
+            titles.append("TIP average (n={})".format(len(reference_images)))
             show_images.append(np.mean(reference_images, axis=0).reshape(calo_image.shape))
 
         for i, image in enumerate(show_images):
@@ -132,7 +132,7 @@ class TrainedIm2Im(TrainedGenerator):
 
             if reference_images is not None:
                 ax[i+5].hist([ref_values, fake_values], bins=20, histtype="step", stacked=False,
-                             label=["Direct", "Im2Im"], density=True)
+                             label=["TIP", "CIR"], density=True)
                 ax[i+5].legend()
             else:
                 ax[i+5].hist(fake_values, bins=20)

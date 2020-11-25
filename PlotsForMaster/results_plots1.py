@@ -27,8 +27,8 @@ from functionsOnImages import get_energies, get_max_energy, get_number_of_activa
 from functionsOnImages import get_center_of_mass_x, get_center_of_mass_y, get_energy_resolution, get_mean_image
 from functionsOnImages import build_histogram, padding_zeros
 
-savefolder = "../../Thesis/figures/Results"
-mpl.rcParams["image.cmap"] = "YlOrBr"
+savefolder = "../../Thesis/presentation/figures/Results"
+# mpl.rcParams["image.cmap"] = "YlOrBr"
 
 def standardize_data(data, scaler, exclude=None):
     standardized_data = data.drop(exclude, axis=1, inplace=False)
@@ -119,7 +119,7 @@ assert tracker_images.shape[0] == data["Calo"].shape[0] == data["Tracker"].shape
 #     r"Resolution $E_{tracker} - E_{image}$"
 # ]
 # kwargs = [{}, {}, {"threshold": 6/1000}, {}, {"real_ET": (tracker_events["real_ET"]/1000)[:nr_samples]}]
-# labels = ["Geant4", "cGAN"]
+# labels = ["Geant4", "STP"]
 # absvals = [11, 7, 30, np.inf, 20, np.inf]
 
 # fig, axs = plt.subplots(nrows=3, ncols=2, figsize=(12, 10))
@@ -145,31 +145,35 @@ assert tracker_images.shape[0] == data["Calo"].shape[0] == data["Tracker"].shape
 #####################################################################################################
 # Generate example images
 #####################################################################################################
-# nr_samples = 500
-# calo_images = data["Calo"][:nr_samples]*energy_scaler/1000
-# inputs = data["Tracker"][keep_cols].values[:nr_samples]
-# inputs = [[track] for track in inputs]
-# generated_images = Generator.generate_batches(inputs, batch_size=100)*energy_scaler/1000
-# plt_idxs = []
+nr_samples = 100
+calo_images = data["Calo"][:nr_samples]*energy_scaler/1000
+inputs = data["Tracker"][keep_cols].values[:nr_samples]
+inputs = [[track] for track in inputs]
+generated_images = Generator.generate_batches(inputs, batch_size=100)*energy_scaler/1000
+plt_idxs = []
 
-# calo_images = padding_zeros(calo_images, top=2, bottom=2)
-# tracker_images = np.flip(padding_zeros(tracker_images, top=2, bottom=2)[:nr_samples] / 1000, axis=1)
+calo_images = padding_zeros(calo_images, top=2, bottom=2)
+tracker_images = np.flip(padding_zeros(tracker_images, top=2, bottom=2)[:nr_samples] / 1000, axis=1)
 
-# def set_title_for(ax, im):
-#     im = im.reshape([1, 56, 64])
-#     energy, max_energy = get_energies(im), get_max_energy(im)
-#     ax.set_title("Energy: %.2f GeV\nMaximum Energy: %.2f GeV" % (energy, max_energy))
+def set_title_for(ax, im):
+    im = im.reshape([1, 56, 64])
+    energy, max_energy = get_energies(im), get_max_energy(im)
+    ax.set_title("Energy: %.2f GeV\nMaximum Energy: %.2f GeV" % (energy, max_energy))
 
-# for i in range(nr_samples):
-#     max_e = np.max([np.max(calo_images[i]), np.max(generated_images[i])])
-#     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(16, 12))
-#     axs[0].imshow(calo_images[i], vmin=0, vmax=max_e)
-#     set_title_for(ax=axs[0], im=calo_images[i])
-#     axs[1].imshow(generated_images[i], vmin=0, vmax=max_e)
-#     set_title_for(ax=axs[1], im=generated_images[i])
-#     fig.suptitle("Index: {}".format(i))
-#     plt.show()
-
+idxs = [1, 2, 7, 12, 17, 18]
+for row, idx in enumerate(idxs):
+    print(inputs[idx])
+    max_e = np.max([np.max(calo_images[idx]), np.max(generated_images[idx])])
+    fig, axs = plt.subplots(nrows=1, ncols=3, figsize=(10, 7))
+    fig.subplots_adjust(left=0.05, bottom=0.02, right=0.999, top=0.999, wspace=0.3, hspace=0.4)
+    axs[0].imshow(calo_images[idx], vmin=0, vmax=max_e)
+    # set_title_for(ax=axs[0], im=calo_images[idx])
+    im = axs[1].imshow(generated_images[idx], vmin=0, vmax=max_e)
+    # set_title_for(ax=axs[1], im=generated_images[idx])
+    axs[-1].axis("off")
+    plt.colorbar(im, ax=axs[-1], shrink=0.4, anchor=-0.2, fraction=1.2, label="Transverse Energy (GeV)")
+    plt.savefig(savefolder+"/piplus_idx_{}.png".format(idx))
+raise
 
 #####################################################################################################
 # Image variety

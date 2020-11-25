@@ -183,29 +183,29 @@ image_shape = calo_images.shape[1:]
 #####################################################################################################
 # Generate plot for thesis
 #####################################################################################################
-# data_path = "../../Data/B2Dmunu/TestingPurpose"
-# with open(data_path+"/calo_images.pickle", "rb") as f:
-#     calo_images = pickle.load(f)
-#     calo_images = padding_zeros(calo_images, **padding)
-#     image_shape = calo_images.shape[1:]
-# with open(data_path+"/tracker_input.pickle", "rb") as f:
-#     tracker_events = pickle.load(f)
-# with open(data_path+"/tracker_images.pickle", "rb") as f:
-#     tracker_images = pickle.load(f)
+data_path = "../../Data/B2Dmunu/TestingPurpose"
+with open(data_path+"/calo_images.pickle", "rb") as f:
+    calo_images = pickle.load(f)
+    calo_images = padding_zeros(calo_images, **padding)
+    image_shape = calo_images.shape[1:]
+with open(data_path+"/tracker_input.pickle", "rb") as f:
+    tracker_events = pickle.load(f)
+with open(data_path+"/tracker_images.pickle", "rb") as f:
+    tracker_images = pickle.load(f)
 
-# idx = 34
-# fig = plt.figure()
-# plt.imshow(padding_zeros(tracker_images, top=6, bottom=6)[idx].reshape([64, 64]))
-# plt.savefig("../../Thesis/figures/Data/part2_tracker_image.png")
-# tracker_event = tracker_events[idx]
-# generated_image = Generator.generate_multiple_overlay_from_condition(lists_of_inputs=[tracker_event])
+idx = 34
+fig = plt.figure()
+plt.imshow(padding_zeros(tracker_images, top=6, bottom=6)[idx].reshape([64, 64]))
+plt.savefig("../../Thesis/presentation/figures/Data/part2_tracker_image.png")
+tracker_event = tracker_events[idx]
+generated_image = Generator.generate_multiple_overlay_from_condition(lists_of_inputs=[tracker_event])
 
 # fig = plt.figure()
 # plt.imshow(generated_image.reshape(image_shape))
-# plt.savefig("../../Thesis/figures/Data/part2_generated_image.png")
-# fig = plt.figure()
-# plt.imshow(calo_images[idx])
-# plt.savefig("../../Thesis/figures/Data/part2_calorimeter_image.png")
+# plt.savefig("../../Thesis/presentation/figures/Data/part2_generated_image.png")
+fig = plt.figure()
+plt.imshow(padding_zeros(calo_images, top=4, bottom=4)[idx])
+plt.savefig("../../Thesis/presentation/figures/Data/part2_calorimeter_image.png")
 # for i, track in enumerate(tracker_event):
 #     generated_image_i = Generator.generate_from_condition(inputs=[track])
 #     fig = plt.figure()
@@ -214,7 +214,7 @@ image_shape = calo_images.shape[1:]
 #     if i == 2:
 #       break
 
-# raise
+raise
 
 #####################################################################################################
 # Generation of predictions

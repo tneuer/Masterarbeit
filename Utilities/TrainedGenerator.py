@@ -249,7 +249,7 @@ class TrainedGenerator():
 
             if reference_images is not None:
                 ax[i+4].hist([ref_values, fake_values], bins=20, histtype="step", stacked=False,
-                             label=["reference", "generated"], density=True)
+                             label=["Reference", "STP"], density=True)
                 ax[i+4].legend()
             else:
                 ax[i+4].hist(fake_values, bins=20)
